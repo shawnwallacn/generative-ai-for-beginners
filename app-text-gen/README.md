@@ -81,6 +81,36 @@ Generated Text:
 [Generated response from GitHub Models...]
 ```
 
+## Virtual Environment Management
+
+### Activating the Virtual Environment
+
+**On Windows (PowerShell)**:
+```bash
+.\.venv\Scripts\Activate.ps1
+```
+
+**On Windows (Command Prompt)**:
+```bash
+.venv\Scripts\activate.bat
+```
+
+**On macOS/Linux**:
+```bash
+source venv/bin/activate
+```
+
+You should see `(.venv)` appear at the start of your prompt once activated.
+
+### Deactivating the Virtual Environment
+
+To exit the virtual environment, run:
+```bash
+deactivate
+```
+
+The `(.venv)` prefix will disappear from your prompt.
+
 ## Usage
 
 ### Running the Application

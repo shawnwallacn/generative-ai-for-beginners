@@ -6,24 +6,59 @@ from github_models_api import get_available_models
 
 load_dotenv()
 
-def generate_text(prompt, model_name):
-    """Generate text using GitHub Models"""
+def generate_text_streaming(prompt, model_name):
+    """Generate text using GitHub Models with streaming output"""
     client = OpenAI(
         api_key=GITHUB_TOKEN,
         base_url=GITHUB_MODELS_ENDPOINT
     )
     
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.7,
-        max_tokens=500
-    )
-    
-    return response.choices[0].message.content
+    try:
+        # Use stream=True to get streaming response
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500,
+            stream=True  # Enable streaming
+        )
+        
+        full_response = ""
+        for chunk in response:
+            try:
+                # Safely check for content
+                if (chunk.choices and 
+                    len(chunk.choices) > 0 and 
+                    chunk.choices[0].delta and 
+                    chunk.choices[0].delta.content):
+                    content = chunk.choices[0].delta.content
+                    print(content, end="", flush=True)
+                    full_response += content
+            except (AttributeError, IndexError, TypeError):
+                # Skip chunks without content
+                continue
+        
+        print()  # New line at the end
+        return full_response
+        
+    except Exception as e:
+        # Fallback to non-streaming if streaming fails
+        print(f"(Streaming unavailable, using standard response)\n")
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        result = response.choices[0].message.content
+        print(result)
+        return result
 
 def display_model_options(available_models):
     """Display available models and return user choice"""
@@ -115,9 +150,8 @@ def main():
             
             # Generate text
             print(f"\nGenerating response using {current_model}...\n")
-            result = generate_text(user_input, current_model)
-            print(f"Response:\n{result}\n")
-            print("-" * 60)
+            result = generate_text_streaming(user_input, current_model)
+            print("\n" + "-" * 60)
             
         except KeyboardInterrupt:
             print("\n\nProgram interrupted. Goodbye!")
