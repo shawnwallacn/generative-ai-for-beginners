@@ -1,9 +1,9 @@
 {
   "name": "6502-ASM-Expert",
   "created_at": "2025-12-17T10:54:16.034118",
-  "last_used": "2025-12-17T11:11:24.323205",
+  "last_used": "2025-12-17T11:57:49.061049",
   "favorite_model": "gpt-4.1",
-  "system_prompt": "you are a helpful assistant",
+  "system_prompt": "you are a 6502 ASM expert",
   "streaming_enabled": true,
   "preferences": {
     "theme": "default",

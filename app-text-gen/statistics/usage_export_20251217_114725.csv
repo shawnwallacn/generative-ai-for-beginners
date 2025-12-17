@@ -1,0 +1,4 @@
+Timestamp,Model,Prompt Tokens,Completion Tokens,Total Tokens,Estimated Cost
+2025-12-17T11:40:41.333640,gpt-4o-mini,27,311,338,$0.000191
+2025-12-17T11:46:19.097470,gpt-4o-mini,19,339,358,$0.000206
+2025-12-17T11:46:39.977896,gpt-4o-mini,19,255,274,$0.000156

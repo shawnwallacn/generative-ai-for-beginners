@@ -8,8 +8,27 @@ from profile_manager import (
     load_profile, save_profile, create_default_profile, list_profiles,
     display_profiles, apply_profile_settings, update_profile_settings
 )
+from prompt_templates import (
+    display_templates, get_template_by_index, fill_template, 
+    save_custom_template, list_all_templates
+)
+from response_feedback import (
+    display_feedback_prompt, save_feedback, display_feedback_summary,
+    display_flagged_feedback
+)
+from conversation_search import (
+    interactive_search, display_conversation_stats
+)
+from conversation_export import interactive_export
+from model_parameters import ModelParameters, display_parameter_presets, apply_preset
+from conversation_analysis import interactive_analysis
+from batch_processing import interactive_batch_processor, process_batch_job, list_batch_jobs
+from usage_stats import record_request, interactive_stats_menu
 
 load_dotenv()
+
+# Initialize model parameters
+model_params = ModelParameters()
 
 # Conversation history storage
 conversation_history = []
@@ -25,12 +44,21 @@ current_model = DEFAULT_MODEL
 current_profile = None
 profile_name = "default"
 
+# Track last response for feedback
+last_response = None
+last_prompt = None
+
 def generate_text_streaming(prompt, model_name):
     """Generate text using GitHub Models with streaming output and conversation context"""
+    global last_response, last_prompt
+    
     client = OpenAI(
         api_key=GITHUB_TOKEN,
         base_url=GITHUB_MODELS_ENDPOINT
     )
+    
+    # Track prompt for feedback
+    last_prompt = prompt
     
     # Add user message to conversation history
     conversation_history.append({
@@ -40,14 +68,18 @@ def generate_text_streaming(prompt, model_name):
     
     try:
         # Use stream=True to get streaming response
+        params = model_params.get_all_parameters()
         response = client.chat.completions.create(
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 *conversation_history  # Include full conversation history
             ],
-            temperature=0.7,
-            max_tokens=500,
+            temperature=params['temperature'],
+            max_tokens=params['max_tokens'],
+            top_p=params['top_p'],
+            frequency_penalty=params['frequency_penalty'],
+            presence_penalty=params['presence_penalty'],
             stream=True  # Enable streaming
         )
         
@@ -74,19 +106,31 @@ def generate_text_streaming(prompt, model_name):
             "content": full_response
         })
         
+        # Track response for feedback
+        last_response = full_response
+        
+        # Record usage statistics (rough token estimate)
+        prompt_tokens = len(prompt.split()) + len(system_prompt.split())
+        completion_tokens = len(full_response.split())
+        record_request(model_name, prompt_tokens, completion_tokens, system_prompt)
+        
         return full_response
         
     except Exception as e:
         # Fallback to non-streaming if streaming fails
         print(f"(Streaming unavailable, using standard response)\n")
+        params = model_params.get_all_parameters()
         response = client.chat.completions.create(
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 *conversation_history
             ],
-            temperature=0.7,
-            max_tokens=500
+            temperature=params['temperature'],
+            max_tokens=params['max_tokens'],
+            top_p=params['top_p'],
+            frequency_penalty=params['frequency_penalty'],
+            presence_penalty=params['presence_penalty']
         )
         result = response.choices[0].message.content
         print(result)
@@ -96,6 +140,14 @@ def generate_text_streaming(prompt, model_name):
             "role": "assistant",
             "content": result
         })
+        
+        # Track response for feedback
+        last_response = result
+        
+        # Record usage statistics (rough token estimate)
+        prompt_tokens = len(prompt.split()) + len(system_prompt.split())
+        completion_tokens = len(result.split())
+        record_request(model_name, prompt_tokens, completion_tokens, system_prompt)
         
         return result
 
@@ -273,9 +325,11 @@ def select_profile():
     try:
         choice = input("\nEnter the number of the profile to load (or press Enter for default): ").strip()
         
-        if not choice or choice == "1":
+        if not choice:
+            # Empty input = use default
             profile_name = "default"
         else:
+            # User selected a profile by number
             choice_num = int(choice) - 1
             if 0 <= choice_num < len(profiles):
                 profile_name = profiles[choice_num]
@@ -391,6 +445,242 @@ def create_new_profile():
     current_profile = new_profile
     profile_name = new_name
 
+def use_prompt_template():
+    """Use a prompt template to generate a prompt"""
+    global system_prompt
+    
+    template_list = display_templates()
+    
+    if not template_list:
+        return
+    
+    try:
+        choice = input("\nEnter the number of the template to use (or press Enter to cancel): ").strip()
+        
+        if not choice:
+            return
+        
+        choice_num = int(choice) - 1
+        if 0 <= choice_num < len(template_list):
+            template_id, template_data = template_list[choice_num]
+            prompt, template_system_prompt = fill_template(template_data)
+            
+            # Ask if user wants to override system prompt
+            use_template_prompt = input("\nUse template's system prompt? (y/n, default: y): ").strip().lower()
+            if use_template_prompt != 'n':
+                system_prompt = template_system_prompt
+                print(f"System prompt updated to template's prompt.")
+            
+            print(f"\nGenerated prompt:")
+            print(f"'{prompt}'")
+            
+            # Ask if user wants to send this prompt
+            send_prompt = input("\nSend this prompt to the model? (y/n): ").strip().lower()
+            if send_prompt == 'y':
+                print(f"\nGenerating response using {current_model}...\n")
+                result = generate_text_streaming(prompt, current_model)
+                print("\n" + "-" * 60)
+        else:
+            print("Invalid choice.")
+    except ValueError:
+        print("Invalid input.")
+    except Exception as e:
+        print(f"Error using template: {e}")
+
+def create_custom_template():
+    """Create a new custom template"""
+    print("\n" + "=" * 60)
+    print("Create Custom Prompt Template")
+    print("=" * 60)
+    
+    name = input("Template name (e.g., 'Python Expert'): ").strip()
+    if not name:
+        print("Template name is required.")
+        return
+    
+    description = input("Description (brief explanation of the template): ").strip()
+    if not description:
+        print("Description is required.")
+        return
+    
+    system_prompt_input = input("System prompt (instructions for the model): ").strip()
+    if not system_prompt_input:
+        print("System prompt is required.")
+        return
+    
+    template = input("Template text (use {placeholder} for dynamic fields): ").strip()
+    if not template:
+        print("Template text is required.")
+        return
+    
+    # Extract placeholders from template
+    import re
+    placeholders = re.findall(r'\{(\w+)\}', template)
+    
+    if placeholders:
+        print(f"\nDetected placeholders: {', '.join(placeholders)}")
+    
+    try:
+        save_custom_template(name, description, system_prompt_input, template, placeholders)
+        print(f"\nTemplate '{name}' created successfully!")
+    except Exception as e:
+        print(f"Error creating template: {e}")
+
+def rate_last_response():
+    """Rate the last response"""
+    global last_response, last_prompt
+    
+    if last_response is None:
+        print("\nNo response to rate. Generate a response first.")
+        return
+    
+    print(f"\nResponse to rate:")
+    print("-" * 60)
+    print(last_response[:200] + "..." if len(last_response) > 200 else last_response)
+    print("-" * 60)
+    
+    rating, flag, notes = display_feedback_prompt()
+    
+    try:
+        save_feedback(last_prompt, last_response, rating, flag, notes)
+        print(f"\nFeedback saved! Thank you for your rating.")
+    except Exception as e:
+        print(f"Error saving feedback: {e}")
+
+def view_feedback_stats():
+    """View feedback statistics"""
+    display_feedback_summary()
+
+def view_flagged_responses():
+    """View flagged feedback"""
+    display_flagged_feedback()
+
+def search_conversations():
+    """Search through saved conversations"""
+    interactive_search()
+
+def export_conversation():
+    """Export a conversation to different formats"""
+    interactive_export()
+
+def analyze_conversation():
+    """Analyze a saved conversation"""
+    interactive_analysis()
+
+def batch_process():
+    """Process batch jobs"""
+    interactive_batch_processor()
+
+def run_batch_job():
+    """Run/execute a batch job"""
+    jobs = list_batch_jobs()
+    
+    if not jobs:
+        print("\nNo batch jobs available.")
+        return
+    
+    print("\n" + "=" * 60)
+    print("Run Batch Job")
+    print("=" * 60)
+    print("\nAvailable batch jobs:")
+    
+    for i, job in enumerate(jobs, 1):
+        progress = job['statistics']['completed']
+        total = job['statistics']['total']
+        pending = job['statistics']['pending']
+        print(f"{i}. {job['name']} ({progress}/{total} completed, {pending} pending)")
+    
+    try:
+        choice = input("\nSelect job number to run (or press Enter to cancel): ").strip()
+        
+        if not choice:
+            return
+        
+        job_idx = int(choice) - 1
+        if 0 <= job_idx < len(jobs):
+            job_name = jobs[job_idx]['name']
+            process_batch_job(job_name, generate_text_streaming, model_params)
+        else:
+            print("Invalid choice.")
+    
+    except ValueError:
+        print("Invalid input.")
+    except Exception as e:
+        print(f"Error processing batch: {e}")
+
+def view_usage_stats():
+    """View usage statistics"""
+    interactive_stats_menu()
+
+def manage_model_parameters():
+    """Interactive model parameter management"""
+    global model_params
+    
+    while True:
+        print("\n" + "=" * 60)
+        print("Model Parameters")
+        print("=" * 60)
+        print("\nOptions:")
+        print("  1. View current parameters")
+        print("  2. Set temperature")
+        print("  3. Set max tokens")
+        print("  4. Set top_p (nucleus sampling)")
+        print("  5. Set frequency penalty")
+        print("  6. Set presence penalty")
+        print("  7. Configure all parameters")
+        print("  8. Apply preset")
+        print("  9. Reset to defaults")
+        print("  0. Back to main menu")
+        
+        choice = input("\nSelect option (0-9): ").strip()
+        
+        if choice == "1":
+            model_params.display_parameters()
+        
+        elif choice == "2":
+            value = input("Enter temperature (0.0-2.0): ").strip()
+            success, msg = model_params.set_temperature(value)
+            print(f"  {msg}")
+        
+        elif choice == "3":
+            value = input("Enter max tokens (1-4000): ").strip()
+            success, msg = model_params.set_max_tokens(value)
+            print(f"  {msg}")
+        
+        elif choice == "4":
+            value = input("Enter top_p (0.0-1.0): ").strip()
+            success, msg = model_params.set_top_p(value)
+            print(f"  {msg}")
+        
+        elif choice == "5":
+            value = input("Enter frequency penalty (-2.0 to 2.0): ").strip()
+            success, msg = model_params.set_frequency_penalty(value)
+            print(f"  {msg}")
+        
+        elif choice == "6":
+            value = input("Enter presence penalty (-2.0 to 2.0): ").strip()
+            success, msg = model_params.set_presence_penalty(value)
+            print(f"  {msg}")
+        
+        elif choice == "7":
+            model_params.interactive_setup()
+        
+        elif choice == "8":
+            presets = display_parameter_presets()
+            preset_choice = input("\nSelect preset (1-5): ").strip()
+            success, msg = apply_preset(model_params, preset_choice, presets)
+            print(f"  {msg}")
+        
+        elif choice == "9":
+            success, msg = model_params.reset_to_defaults()
+            print(f"  {msg}")
+        
+        elif choice == "0":
+            break
+        
+        else:
+            print("Invalid choice.")
+
 def main():
     """Main interactive loop for the text generation app"""
     global current_model, current_profile, profile_name
@@ -414,6 +704,18 @@ def main():
     print("  - Type 'save-profile' to save profile settings")
     print("  - Type 'system' to set custom system prompt/instructions")
     print("  - Type 'prompt' to view current system prompt")
+    print("  - Type 'template' to use a prompt template")
+    print("  - Type 'create-template' to create a custom template")
+    print("  - Type 'rate' to rate the last response")
+    print("  - Type 'feedback-stats' to view feedback statistics")
+    print("  - Type 'flagged' to view flagged responses")
+    print("  - Type 'search' to search saved conversations")
+    print("  - Type 'export' to export a conversation")
+    print("  - Type 'analyze' to analyze a conversation")
+    print("  - Type 'batch' to manage batch jobs")
+    print("  - Type 'batch-run' to execute a batch job")
+    print("  - Type 'stats' to view usage statistics")
+    print("  - Type 'params' to manage model parameters")
     print("  - Type 'history' to view conversation history")
     print("  - Type 'save' to save current conversation")
     print("  - Type 'load' to load a saved conversation")
@@ -483,6 +785,54 @@ def main():
             
             if user_input.lower() == 'profile-info':
                 view_profile_details()
+                continue
+            
+            if user_input.lower() == 'template':
+                use_prompt_template()
+                continue
+            
+            if user_input.lower() == 'create-template':
+                create_custom_template()
+                continue
+            
+            if user_input.lower() == 'rate':
+                rate_last_response()
+                continue
+            
+            if user_input.lower() == 'feedback-stats':
+                view_feedback_stats()
+                continue
+            
+            if user_input.lower() == 'flagged':
+                view_flagged_responses()
+                continue
+            
+            if user_input.lower() == 'search':
+                search_conversations()
+                continue
+            
+            if user_input.lower() == 'export':
+                export_conversation()
+                continue
+            
+            if user_input.lower() == 'analyze':
+                analyze_conversation()
+                continue
+            
+            if user_input.lower() == 'batch':
+                batch_process()
+                continue
+            
+            if user_input.lower() == 'batch-run':
+                run_batch_job()
+                continue
+            
+            if user_input.lower() == 'stats':
+                view_usage_stats()
+                continue
+            
+            if user_input.lower() == 'params':
+                manage_model_parameters()
                 continue
             
             # Validate input

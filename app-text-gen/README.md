@@ -9,16 +9,31 @@ The project is organized as follows:
 ```
 app-text-gen
 ├── src
-│   ├── app.py                    # Main entry point of the application
-│   ├── config.py                 # Configuration settings and model definitions
-│   ├── github_models_api.py      # GitHub Models API utilities
-│   ├── conversation_manager.py   # Save/load conversation functionality
-│   └── utils.py                  # Utility functions
-├── conversations/                # Saved conversation files (JSON format)
-├── .env                          # Environment variables (GITHUB_TOKEN, etc.)
-├── requirements.txt              # List of dependencies
-├── tsconfig.json                 # TypeScript configuration
-└── README.md                     # Documentation for the project
+│   ├── app.py                      # Main entry point of the application
+│   ├── config.py                   # Configuration settings and model definitions
+│   ├── github_models_api.py        # GitHub Models API utilities
+│   ├── conversation_manager.py     # Save/load conversation functionality
+│   ├── profile_manager.py          # User profile management
+│   ├── prompt_templates.py         # Prompt templates for common tasks
+│   ├── response_feedback.py        # Response rating and feedback system
+│   ├── conversation_search.py      # Search and analyze conversations
+│   ├── conversation_export.py      # Export conversations to multiple formats
+│   ├── conversation_analysis.py    # Analyze conversation patterns and topics
+│   ├── model_parameters.py         # Model parameter management
+│   ├── batch_processing.py         # Batch job processing
+│   ├── usage_stats.py              # Usage statistics and tracking
+│   └── utils.py                    # Utility functions
+├── conversations/                  # Saved conversation files (JSON format)
+├── profiles/                       # User profile configurations (JSON format)
+├── templates/                      # Custom prompt templates (JSON format)
+├── feedback/                       # Response feedback and ratings (JSON format)
+├── batch_jobs/                     # Batch processing jobs (JSON format)
+├── batch_results/                  # Batch job results (CSV/JSON format)
+├── exports/                        # Exported conversations (MD/CSV/HTML/TXT)
+├── statistics/                     # Usage statistics (CSV/JSON format)
+├── .env                            # Environment variables (GITHUB_TOKEN, etc.)
+├── requirements.txt                # List of dependencies
+└── README.md                       # Documentation for the project
 ```
 
 ## Setup Instructions
@@ -158,11 +173,28 @@ Default model: gpt-4o-mini
 - **Custom system prompt**: Type `system` to set custom instructions (e.g., "You are a Python expert")
 - **View system prompt**: Type `prompt` to see the current system prompt
 
+#### Prompt Templates
+- **Use template**: Type `template` to select and use a pre-built prompt template
+- **Create template**: Type `create-template` to create a custom reusable template
+- **Available templates**: Coding Help, Creative Writing, Explain Concept, Code Review, Summarize, Brainstorm, Debug Error, Tutorial Writer
+
+#### Response Feedback & Quality Control
+- **Rate response**: Type `rate` to rate the last response (1-5 stars)
+- **Flag issues**: Mark responses as having accuracy, bias, or harmful content issues
+- **View feedback stats**: Type `feedback-stats` to see response rating statistics
+- **View flagged responses**: Type `flagged` to see all flagged responses for review
+
 #### Conversation Management
 - **Conversation history**: Type `history` to view all messages in the current conversation
 - **Save conversation**: Type `save` to save your conversation to a JSON file
 - **Load conversation**: Type `load` to restore a previously saved conversation
 - **Clear history**: Type `clear` to start a fresh conversation
+- **Search conversations**: Type `search` to search through saved conversations by keywords
+- **Export conversation**: Type `export` to export a conversation to Markdown, CSV, Plain Text, or HTML
+
+#### Conversation Analysis
+- **Analyze conversation**: Type `analyze` to see detailed analysis of a conversation
+- **Analysis includes**: Message structure, word frequency, quality metrics, engagement ratio, and topic detection
 
 #### Profile Management
 - **Switch profile**: Type `profile` to load a different user profile
@@ -170,6 +202,24 @@ Default model: gpt-4o-mini
 - **View profile info**: Type `profile-info` to display current profile details
 - **Create profile**: Type `new-profile` to create a new profile with custom settings
 - **Save profile**: Type `save-profile` to save current model and system prompt to a profile
+
+#### Model Parameters
+- **Manage parameters**: Type `params` to adjust temperature, max tokens, and sampling parameters
+- **Parameter presets**: Choose from 5 presets (Precise, Balanced, Creative, Concise, Verbose)
+- **Fine-tuned control**: Adjust temperature, top_p, frequency penalty, and presence penalty
+
+#### Batch Processing
+- **Manage batches**: Type `batch` to create and manage batch jobs
+- **Create from text**: Create a batch job by entering prompts directly
+- **Create from file**: Import prompts from a file (TXT, CSV, or JSON)
+- **Process batch**: Type `batch-run` to execute pending prompts in a batch job
+- **Export results**: Export batch results to CSV or JSON format
+
+#### Usage Statistics
+- **View stats**: Type `stats` to see your API usage, token counts, and cost estimates
+- **Model comparison**: Compare usage and cost across different models
+- **Usage trends**: Track usage by date and model
+- **Export statistics**: Export usage data to CSV
 
 #### Program Control
 - **Exit**: Type `exit` or `quit` to end the program
@@ -431,6 +481,305 @@ Conversations are saved as JSON files in the `conversations/` directory and incl
 - The model used
 - Timestamp of when it was saved
 
+### Prompt Templates
+
+Pre-built templates speed up common tasks:
+
+```
+Enter your prompt (or command): template
+
+============================================================
+Available Prompt Templates:
+============================================================
+1. Coding Help
+   Get help with programming problems
+2. Creative Writing
+   Assist with creative writing tasks
+3. Explain Concept
+   Explain complex concepts simply
+... (8 templates total)
+============================================================
+
+Enter the number of the template to use: 1
+
+============================================================
+Using Template: Coding Help
+============================================================
+Description: Get help with programming problems
+
+Template: I need help with {language} programming. {question}
+
+Please fill in the following fields:
+  language: Python
+  question: How do I read a file?
+```
+
+**Built-in Templates:**
+- **Coding Help**: Programming assistance with language-specific focus
+- **Creative Writing**: Help with fiction, poetry, and creative content
+- **Explain Concept**: Break down complex topics for any audience
+- **Code Review**: Get feedback on code quality and improvements
+- **Summarize Text**: Condense long text into key points
+- **Brainstorm Ideas**: Generate creative ideas for projects
+- **Debug Error**: Help diagnose and fix programming errors
+- **Tutorial Writer**: Create step-by-step learning guides
+
+### Response Feedback System
+
+Rate and track response quality:
+
+```
+Enter your prompt (or command): rate
+
+============================================================
+Rate this Response
+============================================================
+
+How helpful was this response?
+  1 - Not helpful at all
+  2 - Somewhat unhelpful
+  3 - Neutral
+  4 - Helpful
+  5 - Very helpful
+
+Enter rating (1-5): 5
+
+Does this response have any issues? (y/n): n
+
+Any additional notes? (optional, press Enter to skip): 
+
+Feedback saved! Thank you for your rating.
+```
+
+Then view statistics:
+
+```
+Enter your prompt (or command): feedback-stats
+
+============================================================
+Feedback Summary Statistics
+============================================================
+
+Total Responses Rated: 24
+Average Rating: 4.25★ / 5★
+
+Rating Distribution:
+  ⭐⭐⭐⭐⭐ (5): 18 responses
+  ⭐⭐⭐⭐  (4): 5 responses
+  ⭐⭐⭐    (3): 1 responses
+  ⭐⭐      (2): 0 responses
+  ⭐        (1): 0 responses
+
+Flagged Issues:
+  - accuracy: 1
+```
+
+### Conversation Search & Export
+
+Search and export your conversations:
+
+```
+Enter your prompt (or command): search
+
+============================================================
+Search Conversations
+============================================================
+
+Search by:
+  1. Content (search in all messages)
+  2. Prompt (search in system prompts)
+  3. Model (search by model name)
+  4. All (search everywhere)
+
+Select search type: 1
+Enter search query: Python
+
+============================================================
+Search Results (3 conversations found)
+============================================================
+...
+```
+
+Export to multiple formats:
+
+```
+Enter your prompt (or command): export
+
+[Select conversation to export]
+
+Export format:
+  1. Markdown
+  2. CSV
+  3. Plain Text
+  4. HTML
+  5. All formats
+
+Select format: 5
+✓ Successfully exported 4 file(s):
+  - exports/python_tutorial.md
+  - exports/python_tutorial.csv
+  - exports/python_tutorial.txt
+  - exports/python_tutorial.html
+```
+
+### Conversation Analysis
+
+Analyze patterns in your conversations:
+
+```
+Enter your prompt (or command): analyze
+
+[Select conversation]
+
+============================================================
+Conversation Analysis: python_tutorial.json
+============================================================
+
+--- Structure ---
+Total Messages:                50
+User Messages:                 25
+Assistant Messages:            25
+Average User Message Length:   145 characters
+Average Assistant Message:     320 characters
+
+--- Quality Metrics ---
+Depth:                         deep
+Engagement:                    high
+Length:                        long
+Balance:                       well-balanced
+
+--- Top Words (Content Frequency) ---
+1. python              (15 times)
+2. function            (12 times)
+3. code                (11 times)
+...
+```
+
+### Model Parameter Control
+
+Fine-tune model behavior:
+
+```
+Enter your prompt (or command): params
+
+============================================================
+Model Parameters
+============================================================
+
+Options:
+  1. View current parameters
+  2. Set temperature
+  3. Set max tokens
+  4. Set top_p (nucleus sampling)
+  5. Set frequency penalty
+  6. Set presence penalty
+  7. Configure all parameters
+  8. Apply preset
+  9. Reset to defaults
+  0. Back to main menu
+```
+
+**Parameter Presets:**
+1. **Precise/Analytical** - Factual, deterministic responses (Temperature: 0.2)
+2. **Balanced** - General conversation (Temperature: 0.7) - Default
+3. **Creative** - Creative writing & brainstorming (Temperature: 1.2)
+4. **Concise** - Short, focused responses (Temperature: 0.5)
+5. **Verbose** - Detailed, comprehensive responses (Temperature: 0.8)
+
+### Batch Processing
+
+Process multiple prompts efficiently:
+
+```
+Enter your prompt (or command): batch
+
+============================================================
+Batch Processing
+============================================================
+
+Options:
+  1. Create batch from text input
+  2. Create batch from file
+  3. View batch jobs
+  4. View job details
+  5. Process batch job
+  6. Export results
+  0. Back to main menu
+
+Select option: 1
+
+Enter prompts (type 'DONE' on a new line to finish):
+Prompt: What is Python?
+Prompt: How do I use variables?
+Prompt: What are functions?
+Prompt: DONE
+
+Enter model name (default: gpt-4o-mini): 
+
+✓ Batch job created: batch_jobs/batch_20251217_114909.json
+  Total prompts: 3
+```
+
+Then run the batch:
+
+```
+Enter your prompt (or command): batch-run
+
+[Select batch job]
+
+[1/3] Processing: "What is Python?"...
+✓ Complete
+
+[2/3] Processing: "How do I use variables?"...
+✓ Complete
+
+[3/3] Processing: "What are functions?"...
+✓ Complete
+
+============================================================
+Batch Processing Complete!
+✓ Processed: 3 prompts
+============================================================
+```
+
+### Usage Statistics & Monitoring
+
+Track your API usage and costs:
+
+```
+Enter your prompt (or command): stats
+
+============================================================
+Usage Statistics
+============================================================
+
+Options:
+  1. View overall statistics
+  2. Compare model usage
+  3. Export statistics to CSV
+  0. Back to main menu
+
+Select option: 1
+
+Overall Statistics:
+
+Total Requests:            45
+Total Tokens Used:         12,345
+Average Tokens/Request:    274
+Estimated Total Cost:      $0.018543
+
+By Model:
+  gpt-4o-mini
+    - Requests: 30
+    - Tokens: 8,200
+    - Cost: $0.001230
+
+  gpt-4.1
+    - Requests: 15
+    - Tokens: 4,145
+    - Cost: $0.002493
+```
+
 ## Understanding GitHub Models
 
 **GitHub Models** provides free access to state-of-the-art AI models through GitHub. This project uses:
@@ -462,14 +811,34 @@ You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [sr
 
 ## Features
 
+### Core Features
 - **Multi-Model Support**: Choose from multiple GitHub Models (GPT-4, Claude, etc.)
 - **Streaming Responses**: See responses appear word-by-word in real-time
 - **Conversation History**: Maintain context across multiple messages in a single session
-- **Custom System Prompts**: Define custom instructions to personalize AI behavior (e.g., "Act as a Python expert")
+- **Custom System Prompts**: Define custom instructions to personalize AI behavior
 - **Save/Load Conversations**: Save conversations to JSON files and resume them later
 - **Interactive Commands**: Simple text commands for all functionality
 - **Environment-based Configuration**: Secure API key management via `.env` file
 - **Free Access**: Leverages GitHub Models for free tier availability
+
+### Advanced Features
+- **Prompt Templates**: 8 built-in templates + create custom templates with dynamic placeholders
+- **Response Feedback**: 5-star rating system with issue flagging (accuracy, bias, harmful)
+- **Conversation Search**: Search by content, system prompts, or model usage
+- **Conversation Export**: Export to Markdown, CSV, Plain Text, or HTML formats
+- **Conversation Analysis**: Detailed analysis including word frequency, quality metrics, and engagement
+- **Model Parameters**: Fine-tune temperature, max tokens, top_p, frequency/presence penalties
+- **Parameter Presets**: 5 pre-configured profiles (Precise, Balanced, Creative, Concise, Verbose)
+- **User Profiles**: Save and switch between different role-based configurations
+- **Batch Processing**: Process multiple prompts in batches with progress tracking
+- **Usage Statistics**: Track API calls, token usage, cost estimates, and model comparison
+- **Multiple Export Formats**: Export conversations and batch results to various formats
+
+### Quality & Monitoring
+- **Feedback System**: Rate and flag responses for quality assurance
+- **Analytics**: Comprehensive conversation analysis and topic detection
+- **Usage Tracking**: Monitor token consumption and estimated costs
+- **Performance Monitoring**: Track response quality and engagement metrics
 
 ## Contributing
 

@@ -1,0 +1,35 @@
+{
+  "name": "batch_20251217_114909",
+  "created_at": "2025-12-17T11:49:09.303416",
+  "model": "gpt-4o-mini",
+  "system_prompt": "You are a helpful assistant.",
+  "prompts": [
+    {
+      "id": 1,
+      "prompt": "you are an expert party planner",
+      "status": "pending",
+      "response": null,
+      "timestamp": null
+    },
+    {
+      "id": 2,
+      "prompt": "what are the top 3 things to consider when planning a christmas party",
+      "status": "pending",
+      "response": null,
+      "timestamp": null
+    },
+    {
+      "id": 3,
+      "prompt": "summarize the list in table format",
+      "status": "pending",
+      "response": null,
+      "timestamp": null
+    }
+  ],
+  "statistics": {
+    "total": 3,
+    "completed": 0,
+    "failed": 0,
+    "pending": 3
+  }
+}

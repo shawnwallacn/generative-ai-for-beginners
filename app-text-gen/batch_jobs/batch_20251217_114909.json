@@ -1,0 +1,35 @@
+{
+  "name": "batch_20251217_114909",
+  "created_at": "2025-12-17T11:49:09.303416",
+  "model": "gpt-4o-mini",
+  "system_prompt": "You are a helpful assistant.",
+  "prompts": [
+    {
+      "id": 1,
+      "prompt": "you are an expert party planner",
+      "status": "completed",
+      "response": "Absolutely! I\u2019d be happy to help you plan a party. What type of party are you organizing? Do you have a specific theme, date, or location in mind? Let me know what you need assistance with!",
+      "timestamp": "2025-12-17T12:02:27.049406"
+    },
+    {
+      "id": 2,
+      "prompt": "what are the top 3 things to consider when planning a christmas party",
+      "status": "completed",
+      "response": "Planning a Christmas party can be a delightful experience, but there are several key factors to consider to ensure everything goes smoothly. Here are the top three things to keep in mind:\n\n1. **Guest List and Invitations:**\n   - **Determine the Guest List:** Decide how many people you want to invite based on your space and budget. Consider whether it will be a formal gathering, a casual get-together, or a family affair.\n   - **Send Invitations:** Create and send out invitations well in advance, whether via traditional mail, email, or digital platforms. Make sure to include essential details like date, time, location, dress code, and RSVP information.\n\n2. **Theme and Decorations:**\n   - **Choose a Theme:** Decide if you want a specific theme (e.g., Winter Wonderland, Ugly Sweater, Classic Christmas) that will guide your decorations, food, and activities.\n   - **Decorations:** Plan your decorations to create a festive atmosphere. This might include a Christmas tree, lights, table settings, and themed d\u00e9cor. Don\u2019t forget to consider the ambiance you want to create with music and lighting.\n\n3. **Food and Drinks:**\n   - **Menu Planning:** Decide whether you will serve a full meal, appetizers, or a potluck. Consider dietary restrictions and preferences of your guests. Traditional favorites like ham or turkey, holiday cookies, and festive drinks can be a hit.\n   - **Beverage Options:** Offer a variety of drinks, including non-alcoholic options, cocktails, and festive punch. Having a signature drink can add a nice touch to the event.\n\nBy focusing on these three areas, you can create a memorable and enjoyable Christmas party for you and your guests! If you need more detailed guidance on any of these aspects, feel free to ask!",
+      "timestamp": "2025-12-17T12:02:31.456887"
+    },
+    {
+      "id": 3,
+      "prompt": "summarize the list in table format",
+      "status": "completed",
+      "response": "Certainly! Here\u2019s a summary of the top three things to consider when planning a Christmas party, presented in table format:\n\n| **Consideration**      | **Details**                                                                                       |\n|------------------------|---------------------------------------------------------------------------------------------------|\n| **Guest List & Invitations** | - Determine the number of guests based on space and budget.<br>- Send invitations in advance (mail, email, or digital). Include date, time, location, dress code, and RSVP info. |\n| **Theme & Decorations** | - Choose a specific theme (e.g., Winter Wonderland, Ugly Sweater, Classic Christmas).<br>- Plan decorations to create a festive atmosphere (tree, lights, table settings, ambiance).  |\n| **Food & Drinks**      | - Decide on the menu (full meal, appetizers, potluck) considering dietary restrictions.<br>- Offer a variety of drinks, including non-alcoholic options and a signature drink.  |\n\nFeel free to expand on any of these points if you need more information!",
+      "timestamp": "2025-12-17T12:02:34.635007"
+    }
+  ],
+  "statistics": {
+    "total": 3,
+    "completed": 3,
+    "failed": 0,
+    "pending": 0
+  }
+}
