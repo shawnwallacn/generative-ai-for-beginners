@@ -9,13 +9,16 @@ The project is organized as follows:
 ```
 app-text-gen
 ├── src
-│   ├── app.py          # Main entry point of the application
-│   ├── config.py       # Configuration settings and environment variable loading
-│   └── utils.py        # Utility functions for API calls and response handling
-├── .env                # Environment variables (GITHUB_TOKEN, etc.)
-├── requirements.txt    # List of dependencies
-├── tsconfig.json       # TypeScript configuration (if applicable)
-└── README.md           # Documentation for the project
+│   ├── app.py                    # Main entry point of the application
+│   ├── config.py                 # Configuration settings and model definitions
+│   ├── github_models_api.py      # GitHub Models API utilities
+│   ├── conversation_manager.py   # Save/load conversation functionality
+│   └── utils.py                  # Utility functions
+├── conversations/                # Saved conversation files (JSON format)
+├── .env                          # Environment variables (GITHUB_TOKEN, etc.)
+├── requirements.txt              # List of dependencies
+├── tsconfig.json                 # TypeScript configuration
+└── README.md                     # Documentation for the project
 ```
 
 ## Setup Instructions
@@ -149,8 +152,26 @@ Default model: gpt-4o-mini
 
 ### Commands
 
-- **Generate text**: Type any prompt and press Enter
+#### Chat & Text Generation
+- **Generate text**: Type any prompt and press Enter to chat with the selected model
 - **Switch model**: Type `model` to select a different AI model
+- **Custom system prompt**: Type `system` to set custom instructions (e.g., "You are a Python expert")
+- **View system prompt**: Type `prompt` to see the current system prompt
+
+#### Conversation Management
+- **Conversation history**: Type `history` to view all messages in the current conversation
+- **Save conversation**: Type `save` to save your conversation to a JSON file
+- **Load conversation**: Type `load` to restore a previously saved conversation
+- **Clear history**: Type `clear` to start a fresh conversation
+
+#### Profile Management
+- **Switch profile**: Type `profile` to load a different user profile
+- **List profiles**: Type `profiles` to see all available profiles
+- **View profile info**: Type `profile-info` to display current profile details
+- **Create profile**: Type `new-profile` to create a new profile with custom settings
+- **Save profile**: Type `save-profile` to save current model and system prompt to a profile
+
+#### Program Control
 - **Exit**: Type `exit` or `quit` to end the program
 - **Interrupt**: Press `Ctrl+C` to stop the app
 
@@ -185,6 +206,231 @@ Enter your prompt (or command): exit
 Thank you for using the Text Generation App. Goodbye!
 ```
 
+## Advanced Features
+
+### User Profiles
+
+Profiles let you save and organize your preferred settings, including favorite models and system prompts. Perfect for switching between different roles or projects!
+
+#### Creating and Managing Profiles
+
+```
+Enter your prompt (or command): new-profile
+Enter a name for the new profile: python_expert
+Profile 'python_expert' created and activated.
+
+Enter your prompt (or command): system
+
+============================================================
+Set Custom System Prompt
+============================================================
+Current prompt: You are a helpful assistant.
+
+Examples:
+  - 'You are a Python programming expert'
+  - 'You are a creative writing assistant'
+  - 'You are a helpful teacher explaining concepts simply'
+
+Enter your custom system prompt (or press Enter for default): You are an expert Python programmer with 20 years of experience
+System prompt updated to: You are an expert Python programmer with 20 years of experience
+
+Enter your prompt (or command): model
+
+============================================================
+Available Models:
+============================================================
+1. claude-3.5-haiku
+   Claude Haiku 4.5 - Small, fast model
+2. gpt-4.1
+   GPT-4.1 - Advanced model
+... (model list)
+
+Select a model (1-5) or press Enter for default: 3
+Selected model: gpt-4o
+
+Enter your prompt (or command): save-profile
+
+============================================================
+Save Profile
+============================================================
+Current profile: python_expert
+
+Options:
+  1. Save to current profile (overwrite)
+  2. Save as a new profile name
+
+Enter your choice (1 or 2, or press Enter for option 1): 1
+Profile 'python_expert' saved.
+```
+
+#### Switching Between Profiles
+
+```
+Enter your prompt (or command): profiles
+
+============================================================
+Available Profiles:
+============================================================
+1. default
+   Model: gpt-4o-mini | Created: 2025-12-17T10:00:00
+2. python_expert
+   Model: gpt-4o | Created: 2025-12-17T15:30:00
+3. creative_writer
+   Model: claude-3.5-haiku | Created: 2025-12-17T14:15:00
+============================================================
+
+Enter your prompt (or command): profile
+
+============================================================
+Available Profiles:
+============================================================
+1. default
+   Model: gpt-4o-mini | Created: 2025-12-17T10:00:00
+2. python_expert
+   Model: gpt-4o | Created: 2025-12-17T15:30:00
+3. creative_writer
+   Model: claude-3.5-haiku | Created: 2025-12-17T14:15:00
+============================================================
+
+Enter the number of the profile to load (or press Enter for default): 2
+Loaded profile: python_expert
+  Model: gpt-4o
+  System Prompt: You are an expert Python programmer with 20 years of experience
+```
+
+#### Viewing Profile Details
+
+```
+Enter your prompt (or command): profile-info
+
+============================================================
+Profile: python_expert
+============================================================
+Model: gpt-4o
+System Prompt: You are an expert Python programmer with 20 years of experience
+Streaming: True
+Created: 2025-12-17T15:30:00.123456
+Last Used: 2025-12-17T16:45:30.654321
+============================================================
+```
+
+#### Saving as New Profile
+
+```
+Enter your prompt (or command): save-profile
+
+============================================================
+Save Profile
+============================================================
+Current profile: python_expert
+
+Options:
+  1. Save to current profile (overwrite)
+  2. Save as a new profile name
+
+Enter your choice (1 or 2, or press Enter for option 1): 2
+Enter the new profile name: advanced_python
+Profile saved as 'advanced_python'.
+```
+
+**Profile Features:**
+- **Automatic Loading**: Your default profile loads automatically on startup
+- **Persistent Storage**: Profiles are saved as JSON files in the `profiles/` directory
+- **Flexible Switching**: Switch between profiles at any time without restarting
+- **Settings Persistence**: Each profile remembers your favorite model and custom system prompts
+- **Flexible Saving**: Save changes to current profile or create new profiles from existing settings
+
+### Conversation History
+
+The app maintains a conversation history throughout your session:
+
+```
+Enter your prompt (or command): What is your name?
+Generating response using gpt-4o-mini...
+
+I'm Claude, an AI assistant made by Anthropic.
+
+------------------------------------------------------------
+
+Enter your prompt (or command): Do you remember what I just asked?
+Generating response using gpt-4o-mini...
+
+Yes! You just asked me what my name is, and I told you I'm Claude, an AI assistant made by Anthropic.
+
+------------------------------------------------------------
+
+Enter your prompt (or command): history
+============================================================
+Conversation History:
+============================================================
+1. [USER]: What is your name?
+2. [ASSISTANT]: I'm Claude, an AI assistant made by Anthropic.
+3. [USER]: Do you remember what I just asked?
+4. [ASSISTANT]: Yes! You just asked me what my name is, and I...
+============================================================
+```
+
+### Custom System Prompts
+
+Personalize the AI's behavior by setting custom system prompts:
+
+```
+Enter your prompt (or command): system
+
+============================================================
+Set Custom System Prompt
+============================================================
+Current prompt: You are a helpful assistant.
+
+Examples:
+  - 'You are a Python programming expert'
+  - 'You are a creative writing assistant'
+  - 'You are a helpful teacher explaining concepts simply'
+
+Enter your custom system prompt (or press Enter for default): You are an expert in 6502 assembly language
+
+System prompt updated to: You are an expert in 6502 assembly language
+
+Enter your prompt (or command): Explain the LDA instruction
+Generating response using gpt-4o-mini...
+
+The LDA (Load Accumulator) instruction is fundamental in 6502 assembly...
+```
+
+### Save and Load Conversations
+
+Save your conversations to files and load them back later:
+
+```
+Enter your prompt (or command): save
+Enter a name for this conversation (or press Enter for auto-generated): python_debugging_help
+
+Conversation saved to: conversations/python_debugging_help.json
+
+Enter your prompt (or command): load
+
+============================================================
+Saved Conversations:
+============================================================
+1. python_debugging_help.json
+   Model: gpt-4o-mini | Messages: 8 | Time: 2025-12-17T15:30:45.123456
+2. assembly_tutorial.json
+   Model: gpt-4.1 | Messages: 12 | Time: 2025-12-17T14:15:22.654321
+============================================================
+
+Enter the number of the conversation to load (or press Enter to cancel): 1
+
+Loaded conversation with 8 messages
+System prompt: You are a Python programming expert
+Model: gpt-4o-mini
+```
+
+Conversations are saved as JSON files in the `conversations/` directory and include:
+- All messages (user and assistant)
+- The system prompt used
+- The model used
+- Timestamp of when it was saved
+
 ## Understanding GitHub Models
 
 **GitHub Models** provides free access to state-of-the-art AI models through GitHub. This project uses:
@@ -216,10 +462,14 @@ You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [sr
 
 ## Features
 
-- Generate text based on user-defined prompts using GitHub Models
-- Configurable through environment variables for security
-- Uses OpenAI Python SDK for simple, familiar API interactions
-- Free tier available through GitHub Models
+- **Multi-Model Support**: Choose from multiple GitHub Models (GPT-4, Claude, etc.)
+- **Streaming Responses**: See responses appear word-by-word in real-time
+- **Conversation History**: Maintain context across multiple messages in a single session
+- **Custom System Prompts**: Define custom instructions to personalize AI behavior (e.g., "Act as a Python expert")
+- **Save/Load Conversations**: Save conversations to JSON files and resume them later
+- **Interactive Commands**: Simple text commands for all functionality
+- **Environment-based Configuration**: Secure API key management via `.env` file
+- **Free Access**: Leverages GitHub Models for free tier availability
 
 ## Contributing
 

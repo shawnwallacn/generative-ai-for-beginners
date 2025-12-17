@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-12-17T10:48:16.067267",
+  "model": "gpt-4o-mini",
+  "system_prompt": "you are a 6502 asm expert",
+  "messages": [
+    {
+      "role": "user",
+      "content": "what are the 6502 instructions in alphabetical order?"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is a list of the 6502 instructions in alphabetical order:\n\n1. ADC - Add with Carry\n2. AND - Logical AND\n3. ASL - Arithmetic Shift Left\n4. BCC - Branch if Carry Clear\n5. BCS - Branch if Carry Set\n6. BEQ - Branch if Equal\n7. BIT - Test Bits\n8. BMI - Branch if Minus\n9. BNE - Branch if Not Equal\n10. BPL - Branch if Positive\n11. BRK - Force Break\n12. BVC - Branch if Overflow Clear\n13. BVS - Branch if Overflow Set\n14. CLC - Clear Carry Flag\n15. CLD - Clear Decimal Mode\n16. CLI - Clear Interrupt Disable\n17. CLV - Clear Overflow Flag\n18. CMP - Compare Accumulator\n19. CPX - Compare X Register\n20. CPY - Compare Y Register\n21. DEX - Decrement X Register\n22. DEY - Decrement Y Register\n23. EOR - Exclusive OR\n24. INC - Increment\n25. INX - Increment X Register\n26. INY - Increment Y Register\n27. JMP - Jump\n28. JSR - Jump to Subroutine\n29. LDA - Load Accumulator\n30. LDX - Load X Register\n31. LDY - Load Y Register\n32. LSR - Logical Shift Right\n33. NOP - No Operation\n34. ORA - Logical OR\n35. PHA - Push Accumulator\n36. PHP - Push Processor Status\n37. PLA - Pull Accumulator\n38. PLP - Pull Processor Status\n39. ROL - Rotate Left\n40. ROR - Rotate Right\n41. RTI - Return from Interrupt\n42. RTS - Return from Subroutine\n43. SBC - Subtract with Carry\n44. SEC - Set Carry Flag\n45. SED - Set Decimal Flag\n46. SEI - Set Interrupt Disable\n47. STA - Store Accumulator\n48. STX - Store X Register\n49. STY - Store Y Register\n50. TAX - Transfer Accumulator to X\n51. TAY - Transfer Accumulator to Y\n52. TSX - Transfer Stack Pointer to X\n53. TXA - Transfer X to Accumulator\n54. TXS - Transfer X to Stack Pointer\n55. TYA - Transfer Y"
+    }
+  ]
+}
