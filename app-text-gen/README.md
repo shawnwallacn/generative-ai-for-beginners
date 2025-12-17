@@ -22,6 +22,7 @@ app-text-gen
 │   ├── model_parameters.py         # Model parameter management
 │   ├── batch_processing.py         # Batch job processing
 │   ├── usage_stats.py              # Usage statistics and tracking
+│   ├── semantic_search.py          # Semantic search with Azure OpenAI embeddings
 │   └── utils.py                    # Utility functions
 ├── conversations/                  # Saved conversation files (JSON format)
 ├── profiles/                       # User profile configurations (JSON format)
@@ -30,9 +31,11 @@ app-text-gen
 ├── batch_jobs/                     # Batch processing jobs (JSON format)
 ├── batch_results/                  # Batch job results (CSV/JSON format)
 ├── exports/                        # Exported conversations (MD/CSV/HTML/TXT)
+├── embeddings/                     # Embedding indexes (JSON format)
 ├── statistics/                     # Usage statistics (CSV/JSON format)
-├── .env                            # Environment variables (GITHUB_TOKEN, etc.)
+├── .env                            # Environment variables (GITHUB_TOKEN, AZURE_OPENAI_*, etc.)
 ├── requirements.txt                # List of dependencies
+├── check_embeddings.py             # Debug script to verify embedding index
 └── README.md                       # Documentation for the project
 ```
 
@@ -43,6 +46,7 @@ app-text-gen
 - Python 3.9 or higher
 - A GitHub account with access to GitHub Models
 - A GitHub personal access token with `repo` scope
+- **(Optional) Azure subscription for semantic search** - Azure OpenAI embeddings provide semantic search capabilities (requires Azure account with OpenAI resource)
 
 ### Step 1: Clone the repository
 
@@ -214,6 +218,11 @@ Default model: gpt-4o-mini
 - **Create from file**: Import prompts from a file (TXT, CSV, or JSON)
 - **Process batch**: Type `batch-run` to execute pending prompts in a batch job
 - **Export results**: Export batch results to CSV or JSON format
+
+#### Semantic Search & Embeddings
+- **Semantic search**: Type `semantic-search` to find conversations by meaning
+- **Index conversation**: Type `index` to generate embeddings for current conversation
+- **View stats**: Type `embedding-stats` to see index statistics and details
 
 #### Usage Statistics
 - **View stats**: Type `stats` to see your API usage, token counts, and cost estimates
@@ -741,6 +750,67 @@ Batch Processing Complete!
 ✓ Processed: 3 prompts
 ============================================================
 ```
+
+### Semantic Search with Embeddings (Phase 1: Complete ✅)
+
+Search your conversations using AI-powered semantic search powered by Azure OpenAI embeddings:
+
+```
+Enter your prompt (or command): index
+
+Index current conversation as 'conv_gpt-4.1_20251217_130409'? (y/n): y
+
+Indexing conversation: conv_gpt-4.1_20251217_130409
+  Generating embeddings for 2 message pairs...
+  ✓ Indexed 2 message pairs
+✓ Conversation indexed successfully!
+
+Enter your prompt (or command): semantic-search
+
+============================================================
+Semantic Search
+============================================================
+
+Enter search query: register transfers
+
+Searching embeddings for: 'register transfers'
+
+============================================================
+Semantic Search Results (2 matches)
+============================================================
+
+1. Similarity: 16.95% (Fair)
+   Model: gpt-4.1 | Time: 2025-12-17T13:26:31.904354
+   User:      what are the 6502 instruction set?
+   Assistant: The **6502** microprocessor has a relatively small...
+
+2. Similarity: 16.95% (Fair)
+   Model: gpt-4.1 | Time: 2025-12-17T13:28:09.554621
+   User:      what are the 6502 instruction set?
+   Assistant: The **6502** microprocessor has a relatively small...
+```
+
+**Phase 1 Features:**
+- **Conversation Indexing**: Convert conversations to semantic embeddings using Azure OpenAI
+- **Semantic Search**: Find conversations by meaning, not just keywords
+- **Similarity Scoring**: Results ranked by relevance (0-100%)
+- **Persistent Index**: All indexed conversations stored in `embeddings/conversation_embeddings.json`
+- **Batch Indexing**: Index multiple conversations efficiently
+- **Cumulative Index**: New indexing adds to existing embeddings, no overwrites
+
+**Commands:**
+- `index` - Index current conversation with Azure OpenAI embeddings
+- `semantic-search` - Search all indexed conversations using natural language
+- `embedding-stats` - View embedding index statistics
+
+**Setup:** See [SEMANTIC_SEARCH_SETUP.md](./SEMANTIC_SEARCH_SETUP.md) for Azure configuration.
+
+**Configuration:**
+- `AZURE_OPENAI_ENDPOINT` - Your Azure OpenAI resource endpoint
+- `AZURE_OPENAI_API_KEY` - Your Azure OpenAI API key
+- `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` - Deployment name (default: `text-embedding-3-small`)
+- `AZURE_OPENAI_API_VERSION` - API version (default: `2024-02-15-preview`)
+- `RAG_SIMILARITY_THRESHOLD` - Minimum similarity score to return results (default: `0.15`)
 
 ### Usage Statistics & Monitoring
 

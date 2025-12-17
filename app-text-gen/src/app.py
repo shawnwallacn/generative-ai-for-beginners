@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from config import GITHUB_TOKEN, GITHUB_MODELS_ENDPOINT, AVAILABLE_MODELS, DEFAULT_MODEL
@@ -24,11 +25,21 @@ from model_parameters import ModelParameters, display_parameter_presets, apply_p
 from conversation_analysis import interactive_analysis
 from batch_processing import interactive_batch_processor, process_batch_job, list_batch_jobs
 from usage_stats import record_request, interactive_stats_menu
+from semantic_search import EmbeddingIndex, interactive_semantic_search, display_search_results
 
 load_dotenv()
 
 # Initialize model parameters
 model_params = ModelParameters()
+
+# Initialize embedding index for semantic search
+try:
+    embedding_index = EmbeddingIndex()
+    semantic_search_available = True
+except Exception as e:
+    print(f"Warning: Semantic search not available: {e}")
+    embedding_index = None
+    semantic_search_available = False
 
 # Conversation history storage
 conversation_history = []
@@ -612,6 +623,57 @@ def view_usage_stats():
     """View usage statistics"""
     interactive_stats_menu()
 
+def semantic_search():
+    """Perform semantic search on conversations"""
+    global embedding_index
+    
+    if not semantic_search_available or embedding_index is None:
+        print("\n❌ Semantic search is not available.")
+        print("Please ensure Azure OpenAI credentials are configured in .env")
+        return
+    
+    interactive_semantic_search(embedding_index)
+
+def index_conversation_embeddings():
+    """Index the current conversation with embeddings"""
+    global embedding_index, conversation_history, system_prompt, current_model
+    
+    if not semantic_search_available or embedding_index is None:
+        print("\n❌ Embedding indexing is not available.")
+        return
+    
+    if not conversation_history:
+        print("\nNo conversation to index.")
+        return
+    
+    # Generate a conversation ID based on timestamp and model
+    conversation_id = f"conv_{current_model}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    proceed = input(f"\nIndex current conversation as '{conversation_id}'? (y/n): ").strip().lower()
+    if proceed != 'y':
+        return
+    
+    try:
+        embedding_index.index_conversation(
+            conversation_id=conversation_id,
+            messages=conversation_history,
+            system_prompt=system_prompt,
+            model=current_model
+        )
+        print("✓ Conversation indexed successfully!")
+    except Exception as e:
+        print(f"Error indexing conversation: {e}")
+
+def view_embedding_stats():
+    """View embedding index statistics"""
+    global embedding_index
+    
+    if not semantic_search_available or embedding_index is None:
+        print("\n❌ Semantic search is not available.")
+        return
+    
+    embedding_index.display_index_stats()
+
 def manage_model_parameters():
     """Interactive model parameter management"""
     global model_params
@@ -709,7 +771,10 @@ def main():
     print("  - Type 'rate' to rate the last response")
     print("  - Type 'feedback-stats' to view feedback statistics")
     print("  - Type 'flagged' to view flagged responses")
-    print("  - Type 'search' to search saved conversations")
+    print("  - Type 'search' to search saved conversations (keyword)")
+    print("  - Type 'semantic-search' to search conversations (AI-powered)")
+    print("  - Type 'index' to index current conversation with embeddings")
+    print("  - Type 'embedding-stats' to view embedding index statistics")
     print("  - Type 'export' to export a conversation")
     print("  - Type 'analyze' to analyze a conversation")
     print("  - Type 'batch' to manage batch jobs")
@@ -809,6 +874,18 @@ def main():
             
             if user_input.lower() == 'search':
                 search_conversations()
+                continue
+            
+            if user_input.lower() == 'semantic-search':
+                semantic_search()
+                continue
+            
+            if user_input.lower() == 'index':
+                index_conversation_embeddings()
+                continue
+            
+            if user_input.lower() == 'embedding-stats':
+                view_embedding_stats()
                 continue
             
             if user_input.lower() == 'export':
