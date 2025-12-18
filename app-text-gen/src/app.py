@@ -26,6 +26,8 @@ from conversation_analysis import interactive_analysis
 from batch_processing import interactive_batch_processor, process_batch_job, list_batch_jobs
 from usage_stats import record_request, interactive_stats_menu
 from semantic_search import EmbeddingIndex, interactive_semantic_search, display_search_results
+from rag import RAGEngine, interactive_rag_settings
+from kb_manager import KnowledgeBase, interactive_kb_menu
 
 load_dotenv()
 
@@ -40,6 +42,23 @@ except Exception as e:
     print(f"Warning: Semantic search not available: {e}")
     embedding_index = None
     semantic_search_available = False
+
+# Initialize RAG engine
+try:
+    rag_engine = RAGEngine(embedding_index)
+    # Enable RAG by default if available
+    if embedding_index:
+        rag_engine.enable()
+except Exception as e:
+    print(f"Warning: RAG engine not available: {e}")
+    rag_engine = None
+
+# Initialize Knowledge Base
+try:
+    knowledge_base = KnowledgeBase()
+except Exception as e:
+    print(f"Warning: Knowledge Base not available: {e}")
+    knowledge_base = None
 
 # Conversation history storage
 conversation_history = []
@@ -61,7 +80,7 @@ last_prompt = None
 
 def generate_text_streaming(prompt, model_name):
     """Generate text using GitHub Models with streaming output and conversation context"""
-    global last_response, last_prompt
+    global last_response, last_prompt, rag_engine
     
     client = OpenAI(
         api_key=GITHUB_TOKEN,
@@ -77,13 +96,24 @@ def generate_text_streaming(prompt, model_name):
         "content": prompt
     })
     
+    # Retrieve context if RAG is enabled
+    context_results = []
+    augmented_system_prompt = system_prompt
+    if rag_engine and rag_engine.enabled:
+        context_results, avg_similarity = rag_engine.retrieve_context(prompt)
+        if context_results:
+            augmented_system_prompt = rag_engine.get_augmented_system_prompt(
+                system_prompt, context_results
+            )
+            rag_engine.display_context_info(context_results, prompt)
+    
     try:
         # Use stream=True to get streaming response
         params = model_params.get_all_parameters()
         response = client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": augmented_system_prompt},
                 *conversation_history  # Include full conversation history
             ],
             temperature=params['temperature'],
@@ -121,9 +151,9 @@ def generate_text_streaming(prompt, model_name):
         last_response = full_response
         
         # Record usage statistics (rough token estimate)
-        prompt_tokens = len(prompt.split()) + len(system_prompt.split())
+        prompt_tokens = len(prompt.split()) + len(augmented_system_prompt.split())
         completion_tokens = len(full_response.split())
-        record_request(model_name, prompt_tokens, completion_tokens, system_prompt)
+        record_request(model_name, prompt_tokens, completion_tokens, augmented_system_prompt)
         
         return full_response
         
@@ -134,7 +164,7 @@ def generate_text_streaming(prompt, model_name):
         response = client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": augmented_system_prompt},
                 *conversation_history
             ],
             temperature=params['temperature'],
@@ -774,6 +804,8 @@ def main():
     print("  - Type 'search' to search saved conversations (keyword)")
     print("  - Type 'semantic-search' to search conversations (AI-powered)")
     print("  - Type 'index' to index current conversation with embeddings")
+    print("  - Type 'index-kb' to index Knowledge Base documents")
+    print("  - Type 'kb-search' to search Knowledge Base documents")
     print("  - Type 'embedding-stats' to view embedding index statistics")
     print("  - Type 'export' to export a conversation")
     print("  - Type 'analyze' to analyze a conversation")
@@ -781,6 +813,8 @@ def main():
     print("  - Type 'batch-run' to execute a batch job")
     print("  - Type 'stats' to view usage statistics")
     print("  - Type 'params' to manage model parameters")
+    print("  - Type 'rag' to configure RAG settings")
+    print("  - Type 'kb' to manage knowledge base documents")
     print("  - Type 'history' to view conversation history")
     print("  - Type 'save' to save current conversation")
     print("  - Type 'load' to load a saved conversation")
@@ -884,6 +918,36 @@ def main():
                 index_conversation_embeddings()
                 continue
             
+            if user_input.lower() == 'index-kb':
+                if embedding_index and knowledge_base:
+                    print("\nIndexing Knowledge Base documents...")
+                    embedding_index.index_kb_documents(knowledge_base)
+                else:
+                    print("Error: Embeddings or KB not available")
+                continue
+            
+            if user_input.lower() == 'kb-search':
+                if embedding_index:
+                    print("\n" + "="*60)
+                    print("Knowledge Base Search")
+                    print("="*60)
+                    query = input("\nEnter search query: ").strip()
+                    if query:
+                        results = embedding_index.search_kb_only(query, top_k=5, similarity_threshold=0.15)
+                        if results:
+                            print(f"\nFound {len(results)} KB results:")
+                            for i, r in enumerate(results, 1):
+                                sim_pct = r['similarity_score'] * 100
+                                print(f"\n{i}. Relevance: {sim_pct:.1f}%")
+                                print(f"   Document: {r.get('doc_title', 'Unknown')}")
+                                print(f"   Collection: {r.get('collection', 'Unknown')}")
+                                print(f"   Text: {r.get('text', '')[:200]}...")
+                        else:
+                            print("No KB results found for this query")
+                else:
+                    print("Error: Embeddings not available")
+                continue
+            
             if user_input.lower() == 'embedding-stats':
                 view_embedding_stats()
                 continue
@@ -910,6 +974,17 @@ def main():
             
             if user_input.lower() == 'params':
                 manage_model_parameters()
+                continue
+            
+            if user_input.lower() == 'rag':
+                interactive_rag_settings(rag_engine)
+                continue
+            
+            if user_input.lower() == 'kb':
+                if knowledge_base:
+                    interactive_kb_menu(knowledge_base)
+                else:
+                    print("Knowledge Base not available")
                 continue
             
             # Validate input

@@ -1,0 +1,20 @@
+{
+  "id": "doc_6502-docs_1_1766085243",
+  "title": "C64 Programming Primer",
+  "filepath": "c64_programming_primer.md",
+  "collection": "6502-docs",
+  "chunks": [
+    {
+      "text": "Programming the Commodore 64 C64 involves two primary paths: BASIC, which is built into the machine, and 6502 Assembly, which is used for performance-heavy software like games.\n1. The Environment\nTo program for a C64 in 2025, you can use original hardware, modern replicas like THEC64, or software emulators.\nEmulators: Use VICE or CCS64 for the most accurate experience on modern PCs.\nModern Tools: For Assembly, cross-compilers like CBM prg Studio or Kick Assembler allow you to write code on Windows/Mac and run it instantly in an emulator.\n2. Commodore BASIC V2\nBASIC is the default interface. Every line of code must start with a line number.\nCommand\tAction\tExample\nPRINT\tDisplays text or values\t10 PRINT \"HELLO C64\"\nGOTO\tJumps to a specific line\t20 GOTO 10\nRUN\tExecutes the program in memory\tRUN\nLIST\tShows the current code\tLIST\nPOKE\tWrites a byte directly to a memory address\tPOKE 53280, 0 Changes border to black\nNEW\tClears the current program from memory\tNEW\n3. Machine Language & Assembly 6502\nFor high-speed graphics and sound, you must use Assembly. The C64 uses the MOS 6510 processor, which is a variant of the 6502.\nCore Concepts\nRegisters: The CPU has three primary 8-bit registers: A Accumulator, X, and Y Index registers.\nMemory Map: The C64 has 64KB of RAM. Key areas include:\n$0400 - $07FF: Screen Memory where characters are displayed.\n$D020: Border Color.\n$D021: Background Color.\nSample Code Assembly\nThis snippet changes the border color to red:\nassembly\nLDA $02    ; Load the value 2 Red into the Accumulator\nSTA $D020   ; Store that value into the Border Color address\nRTS         ; Return from subroutine\nUse code with caution.",
+      "word_count": 280
+    },
+    {
+      "text": "that value into the Border Color address\nRTS         ; Return from subroutine\nUse code with caution.\n\n4. Key Resources for 2025\nModern Guidebooks: Start Here: The Fundamentals of Commodore 64 Programming provides updated tutorials for both BASIC and Assembly.\nClassic References: The Commodore 64 Programmer's Reference Guide is still the essential \"bible\" for hardware registers and memory maps.\nDevelopment IDE: Use CBM prg Studio to manage sprites, character sets, and code in one interface.",
+      "word_count": 74
+    }
+  ],
+  "chunk_count": 2,
+  "total_words": 354,
+  "added_at": "2025-12-18T12:14:03.769844",
+  "indexed": false
+}

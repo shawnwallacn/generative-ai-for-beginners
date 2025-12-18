@@ -285,6 +285,188 @@ class EmbeddingIndex:
             "index_file_size": os.path.getsize(self._get_index_path()) if os.path.exists(self._get_index_path()) else 0
         }
     
+    def index_kb_documents(self, kb_manager) -> Dict:
+        """
+        Index all KB documents into the embedding index
+        
+        Args:
+            kb_manager: KnowledgeBase instance
+        
+        Returns:
+            Dict with indexing results
+        """
+        try:
+            from kb_manager import KnowledgeBase
+        except ImportError:
+            print("Error: KB Manager not available")
+            return {"indexed": 0, "skipped": 0, "failed": 0}
+        
+        print("\nIndexing Knowledge Base documents...")
+        
+        documents = kb_manager.list_documents()
+        indexed_count = 0
+        failed_count = 0
+        
+        for doc in documents:
+            if doc.get("indexed", False):
+                print(f"  - {doc['title']}: already indexed")
+                continue
+            
+            try:
+                # Get chunks for this document
+                chunks = doc.get("chunks", [])
+                if not chunks:
+                    print(f"  - {doc['title']}: no chunks found")
+                    continue
+                
+                # Extract chunk texts
+                chunk_texts = [c["text"] for c in chunks]
+                
+                print(f"  - Indexing {doc['title']} ({len(chunks)} chunks)...")
+                
+                # Generate embeddings for chunks
+                embeddings = self.embeddings_client.embed_batch(chunk_texts)
+                
+                if not embeddings:
+                    print(f"    Error: Could not generate embeddings")
+                    failed_count += 1
+                    continue
+                
+                # Create index entries for each chunk
+                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+                    entry = {
+                        "id": f"{doc['id']}_chunk_{i}",
+                        "type": "kb_document",
+                        "doc_id": doc['id'],
+                        "doc_title": doc['title'],
+                        "collection": doc['collection'],
+                        "chunk_index": i,
+                        "text": chunk["text"],
+                        "word_count": chunk["word_count"],
+                        "embedding": embedding,
+                        "model": "text-embedding-3-small",
+                        "timestamp": datetime.now().isoformat(),
+                        "filepath": doc['filepath']
+                    }
+                    self.index["entries"].append(entry)
+                
+                indexed_count += 1
+                print(f"    [+] Indexed successfully ({len(chunks)} chunks added)")
+                
+                # Mark document as indexed
+                doc["indexed"] = True
+                
+            except Exception as e:
+                print(f"    Error indexing {doc['title']}: {e}")
+                failed_count += 1
+        
+        # Save updated index
+        self.index["last_updated"] = datetime.now().isoformat()
+        self._save_index()
+        
+        result = {
+            "indexed": indexed_count,
+            "skipped": len(documents) - indexed_count - failed_count,
+            "failed": failed_count,
+            "total_chunks": sum(len(d.get("chunks", [])) for d in documents if d.get("indexed"))
+        }
+        
+        print(f"\nIndexing complete:")
+        print(f"  Documents indexed: {result['indexed']}")
+        print(f"  Total chunks: {result['total_chunks']}")
+        if result['failed'] > 0:
+            print(f"  Failed: {result['failed']}")
+        
+        return result
+    
+    def search_kb_only(self, query: str, top_k: int = 5, similarity_threshold: float = 0.5) -> List[Dict]:
+        """
+        Search only KB documents (not conversations)
+        
+        Args:
+            query: Search query string
+            top_k: Number of top results to return
+            similarity_threshold: Minimum similarity score
+        
+        Returns:
+            List of KB document chunks matching the query
+        """
+        if not self.index["entries"]:
+            return []
+        
+        # Embed the query
+        query_embedding = self.embeddings_client.embed_text(query)
+        
+        if query_embedding is None:
+            return []
+        
+        # Convert to numpy array
+        query_vector = np.array([query_embedding])
+        
+        # Search only KB entries
+        results = []
+        
+        for entry in self.index["entries"]:
+            if entry.get("type") != "kb_document":
+                continue
+            
+            embedding = np.array([entry["embedding"]])
+            similarity = cosine_similarity(query_vector, embedding)[0][0]
+            
+            if similarity >= similarity_threshold:
+                result = entry.copy()
+                result["similarity_score"] = float(similarity)
+                results.append(result)
+        
+        # Sort by similarity (descending)
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        
+        return results[:top_k]
+    
+    def search_conversations_only(self, query: str, top_k: int = 5, similarity_threshold: float = 0.5) -> List[Dict]:
+        """
+        Search only conversations (not KB documents)
+        
+        Args:
+            query: Search query string
+            top_k: Number of top results to return
+            similarity_threshold: Minimum similarity score
+        
+        Returns:
+            List of conversation pairs matching the query
+        """
+        if not self.index["entries"]:
+            return []
+        
+        # Embed the query
+        query_embedding = self.embeddings_client.embed_text(query)
+        
+        if query_embedding is None:
+            return []
+        
+        # Convert to numpy array
+        query_vector = np.array([query_embedding])
+        
+        # Search only conversation entries
+        results = []
+        
+        for entry in self.index["entries"]:
+            if entry.get("type") == "kb_document":
+                continue
+            
+            embedding = np.array([entry["embedding"]])
+            similarity = cosine_similarity(query_vector, embedding)[0][0]
+            
+            if similarity >= similarity_threshold:
+                result = entry.copy()
+                result["similarity_score"] = float(similarity)
+                results.append(result)
+        
+        # Sort by similarity (descending)
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        
+        return results[:top_k]
+    
     def display_index_stats(self):
         """Display embedding index statistics"""
         stats = self.get_index_stats()

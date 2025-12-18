@@ -23,6 +23,8 @@ app-text-gen
 │   ├── batch_processing.py         # Batch job processing
 │   ├── usage_stats.py              # Usage statistics and tracking
 │   ├── semantic_search.py          # Semantic search with Azure OpenAI embeddings
+│   ├── rag.py                      # RAG (Retrieval-Augmented Generation) engine
+│   ├── kb_manager.py               # Knowledge Base document management
 │   └── utils.py                    # Utility functions
 ├── conversations/                  # Saved conversation files (JSON format)
 ├── profiles/                       # User profile configurations (JSON format)
@@ -32,6 +34,10 @@ app-text-gen
 ├── batch_results/                  # Batch job results (CSV/JSON format)
 ├── exports/                        # Exported conversations (MD/CSV/HTML/TXT)
 ├── embeddings/                     # Embedding indexes (JSON format)
+├── knowledge_base/                 # Knowledge Base documents and indexes
+│   ├── collections/                # Document collections
+│   ├── documents/                  # Stored documents
+│   └── kb_index.json               # Knowledge Base index
 ├── statistics/                     # Usage statistics (CSV/JSON format)
 ├── .env                            # Environment variables (GITHUB_TOKEN, AZURE_OPENAI_*, etc.)
 ├── requirements.txt                # List of dependencies
@@ -109,7 +115,7 @@ Generated Text:
 
 **On Windows (PowerShell)**:
 ```bash
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate
 ```
 
 **On Windows (Command Prompt)**:
@@ -222,7 +228,24 @@ Default model: gpt-4o-mini
 #### Semantic Search & Embeddings
 - **Semantic search**: Type `semantic-search` to find conversations by meaning
 - **Index conversation**: Type `index` to generate embeddings for current conversation
+- **Index KB**: Type `index-kb` to index all Knowledge Base documents with embeddings
+- **KB search**: Type `kb-search` to search only Knowledge Base documents
 - **View stats**: Type `embedding-stats` to see index statistics and details
+
+#### RAG (Retrieval-Augmented Generation)
+- **Configure RAG**: Type `rag` to enable/disable RAG and adjust settings
+- **Auto context**: RAG automatically retrieves relevant context on every prompt (when enabled)
+- **Adjust threshold**: Change similarity threshold to get more or fewer results
+- **Control context**: Adjust how many context snippets are included
+
+#### Knowledge Base Management
+- **Manage KB**: Type `kb` to open knowledge base management menu
+- **Create collections**: Organize documents into logical groups
+- **Add documents**: Import TXT, Markdown, or PDF files
+- **Index KB**: Type `index-kb` to index all KB documents with embeddings
+- **Search KB**: Type `kb-search` to search only Knowledge Base documents
+- **Automatic chunking**: Documents are split for optimal embedding and retrieval
+- **Multiple formats**: Supports plain text, Markdown, and PDF documents
 
 #### Usage Statistics
 - **View stats**: Type `stats` to see your API usage, token counts, and cost estimates
@@ -812,6 +835,208 @@ Semantic Search Results (2 matches)
 - `AZURE_OPENAI_API_VERSION` - API version (default: `2024-02-15-preview`)
 - `RAG_SIMILARITY_THRESHOLD` - Minimum similarity score to return results (default: `0.15`)
 
+### RAG (Retrieval-Augmented Generation) - Phase 2 (Complete ✅)
+
+Automatically augment your chat responses with relevant context from your conversation history using AI-powered semantic search:
+
+**How RAG Works:**
+1. When you ask a question, RAG searches your indexed conversations for relevant context
+2. The most relevant snippets are automatically added to the system prompt
+3. The LLM uses this context to provide more accurate, informed responses
+4. RAG is **enabled by default** when embeddings are available
+
+**Example Without RAG:**
+```
+User: What is the LDA instruction?
+LLM: The LDA instruction stands for Load Accumulator. It loads a value into the 
+accumulator register from memory or an immediate value...
+(Generic response from training data)
+```
+
+**Example With RAG:**
+```
+User: What is the LDA instruction?
+
+[RAG] Found 3 relevant context(s):
+  1. Relevance: 82.3% | Model: gpt-4.1
+  2. Relevance: 78.9% | Model: gpt-4.1
+  3. Relevance: 76.5% | Model: gpt-4.1
+
+LLM: The LDA instruction, Load Accumulator, is one of the most important 6502 
+instructions. Based on our previous discussions, the LDA instruction loads a value 
+from memory into the accumulator register. It affects the Zero and Negative flags 
+based on the loaded value... (More specific, contextual response)
+```
+
+**RAG Features:**
+- **Automatic Context Retrieval**: Searches embeddings on every prompt when enabled
+- **Smart Threshold**: Configurable similarity threshold (default: 0.15)
+- **Adjustable Context Count**: Control how many context snippets to include (1-10, default: 3)
+- **Token Awareness**: Respects max token limits for context
+- **Easy Toggle**: Enable/disable RAG without restarting
+- **Real-time Feedback**: See what context was retrieved and relevance scores
+
+**Commands:**
+- `rag` - Open RAG settings menu to configure or toggle RAG
+
+**RAG Settings Menu:**
+```
+Enter your prompt (or command): rag
+
+============================================================
+RAG Settings
+============================================================
+Status: 🟢 ON | Threshold: 0.15 | Context: 3 snippets
+Options:
+1. Toggle RAG on/off
+2. Set similarity threshold
+3. Set context count (snippets)
+4. Set max context tokens
+0. Back to main menu
+
+Select option (0-4): 1
+✓ RAG disabled
+```
+
+**Configuration:**
+- `RAG_SIMILARITY_THRESHOLD` - Minimum similarity score (0.0-1.0, default: 0.15)
+- `RAG_CONTEXT_COUNT` - Number of context snippets to include (default: 3)
+- `RAG_MAX_CONTEXT_TOKENS` - Maximum tokens for context (default: 2000)
+
+**Tips for Best Results:**
+- Lower the similarity threshold (try 0.10) if RAG finds no results
+- Increase context count to get more diverse information
+- Disable RAG for creative tasks where generic responses are better
+- Use RAG for technical questions where context matters
+
+### Knowledge Base Management (Phase 3: Complete ✅)
+
+Add and manage external documents to create a personalized knowledge base. Documents are automatically chunked and indexed for semantic search, enhancing RAG capabilities.
+
+**How Knowledge Base Works:**
+1. Create collections (logical groups of documents)
+2. Add documents (TXT, Markdown, PDF files)
+3. Documents are automatically chunked for optimal embedding
+4. KB documents are indexed alongside conversations
+5. RAG retrieves from both conversations AND knowledge base
+6. Get richer context for more informed responses
+
+**Supported Document Formats:**
+- **Plain Text (.txt)**: Simple text files, great for quick content
+- **Markdown (.md)**: Formatted text with structure, preserves readability
+- **PDF (.pdf)**: Complex documents, requires `pdfplumber` (optional: `pip install pdfplumber`)
+
+**Chunking Strategies:**
+- **Paragraphs** (default): Splits by paragraph breaks, best for most content
+- **Sentences**: Groups sentences together, good for technical docs
+- **Size-based**: Splits by character count, useful for uniform chunks
+
+**Example Workflow:**
+```
+Enter your prompt (or command): kb
+
+============================================================
+Knowledge Base Management
+============================================================
+Documents: 0 | Collections: 0
+Indexed: 0/0
+
+Options:
+1. Create collection
+2. Add document to collection
+3. List collections
+4. List documents
+5. View collection stats
+6. View KB stats
+0. Back to main menu
+
+Select option (0-6): 1
+Collection name: ai-research
+Description: AI and ML research papers
+✓ Collection 'ai-research' created
+
+Select option (0-6): 2
+Available collections:
+  1. ai-research
+Select collection (number): 1
+File path: /path/to/document.md
+Document title (optional): Neural Networks Basics
+
+Chunking strategies:
+1. Paragraphs (default)
+2. Sentences
+3. Size-based
+Select strategy (1-3): 1
+
+Parsing document: /path/to/document.md
+Chunking with strategy: paragraphs
+✓ Document added: Neural Networks Basics
+  - Chunks: 12
+  - Total words: 3,450
+  - Document ID: doc_ai-research_0_1702900234
+```
+
+**Knowledge Base Commands:**
+- `kb` - Open KB management menu
+- Create collections for organizing documents
+- Add documents from your filesystem
+- View statistics and indexed documents
+- Automatic integration with RAG for context enhancement
+
+**KB Features:**
+- **Collections**: Organize documents into logical groups
+- **Automatic Chunking**: Documents split intelligently for embeddings
+- **Multiple Formats**: Support TXT, Markdown, and PDF
+- **Flexible Strategies**: Choose chunking method per document
+- **Statistics**: Track KB size, document count, and indexing status
+- **Index Management**: Auto-saves KB index to JSON
+- **RAG Integration**: KB documents automatically included in RAG context (Phase 3b ✅)
+
+### KB-RAG Integration (Phase 3b: Complete ✅)
+
+Full integration between Knowledge Base and RAG for context-aware responses:
+
+**How it works:**
+1. Index KB documents with `index-kb` command
+2. RAG automatically searches both conversations AND KB
+3. Retrieved context includes both sources
+4. LLM uses combined context for better responses
+5. Each source is clearly labeled in the output
+
+**Example Workflow:**
+```
+Enter your prompt (or command): index-kb
+
+Indexing Knowledge Base documents...
+  - Indexing Document 1 (4 chunks)...
+    [+] Indexed successfully (4 chunks added)
+
+Indexing complete:
+  Documents indexed: 2
+  Total chunks: 6
+
+Enter your prompt (or command): what is the lda instruction?
+
+[RAG] Found 3 relevant context(s):
+  1. [KB Document] Relevance: 47.5% | 6502 Microprocessor Guide
+  2. [Conversation] Relevance: 41.8% | gpt-4.1
+
+The **LDA** instruction stands for **Load Accumulator**...
+[Uses KB document context for accurate response]
+```
+
+**KB-RAG Features:**
+- **Automatic Context Mixing**: Combines KB and conversation context
+- **Source Attribution**: Shows which KB doc or conversation provided context
+- **Relevance Ranking**: Results sorted by similarity score
+- **Flexible Thresholds**: Adjust similarity threshold for more/fewer results
+- **Separate Search**: `kb-search` command to search KB only
+- **Index Status**: `embedding-stats` shows KB + conversation entries
+
+**New Commands:**
+- `index-kb` - Index all KB documents with embeddings
+- `kb-search` - Search only KB documents
+
 ### Usage Statistics & Monitoring
 
 Track your API usage and costs:
@@ -903,6 +1128,10 @@ You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [sr
 - **Batch Processing**: Process multiple prompts in batches with progress tracking
 - **Usage Statistics**: Track API calls, token usage, cost estimates, and model comparison
 - **Multiple Export Formats**: Export conversations and batch results to various formats
+- **Semantic Search with Embeddings**: Find conversations by meaning using Azure OpenAI embeddings (Phase 1 ✅)
+- **RAG (Retrieval-Augmented Generation)**: Automatic context retrieval augments LLM responses with relevant conversation history (Phase 2 ✅)
+- **Knowledge Base Management**: Add and manage external documents for enhanced context (Phase 3 ✅)
+- **KB-RAG Integration**: Search both conversations and KB documents for comprehensive context (Phase 3b ✅)
 
 ### Quality & Monitoring
 - **Feedback System**: Rate and flag responses for quality assurance

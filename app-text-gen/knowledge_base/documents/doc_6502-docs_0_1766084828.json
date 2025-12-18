@@ -1,0 +1,28 @@
+{
+  "id": "doc_6502-docs_0_1766084828",
+  "title": "6502 Microprocessor Guide",
+  "filepath": "sample_kb_document.md",
+  "collection": "6502-docs",
+  "chunks": [
+    {
+      "text": "Introduction to the 6502 Microprocessor\n\n Overview\n\nThe 6502 is an 8-bit microprocessor that was widely used in the 1970s and 1980s. It powered computers like the Apple II, Atari 2600, and the Commodore 64.\n\n Key Characteristics\n\nThe 6502 has a simple yet powerful instruction set with just 56 basic instructions. It uses a single accumulator for arithmetic operations and has two index registers X and Y for memory addressing.\n\n Registers\n\n- Accumulator A: Main register for arithmetic and logic operations\n- Index Register X: Used for indexed addressing modes\n- Index Register Y: Used for indexed addressing modes\n- Program Counter PC: 16-bit register pointing to the next instruction\n- Stack Pointer SP: Points to the top of the stack in page 1 memory\n- Status Register P: Contains processor flags\n\n Memory Organization\n\nThe 6502 uses 16-bit addresses, allowing access to 64KB of memory. The memory is typically organized as follows:",
+      "word_count": 151
+    },
+    {
+      "text": "s 16-bit addresses, allowing access to 64KB of memory. The memory is typically organized as follows:\n\n- $0000-$00FF: Zero Page 256 bytes, fast access\n- $0100-$01FF: Stack 256 bytes\n- $0200-$FFFF: Main program memory\n\n Addressing Modes\n\nThe 6502 supports several addressing modes:\n\n1. Implied: No operand required\n2. Accumulator: Operation on the accumulator\n3. Immediate: 8-bit constant value\n4. Zero Page: 8-bit address in zero page\n5. Zero Page, X: Zero page address + X index\n6. Zero Page, Y: Zero page address + Y index\n7. Absolute: 16-bit address\n8. Absolute, X: Absolute address + X index\n9. Absolute, Y: Absolute address + Y index\n10. Indirect: Pointer-based addressing\n11. Indexed Indirect: Combines indexing and indirect addressing\n12. Indirect Indexed: Indirect addressing with Y indexing\n13. Relative: For branch instructions\n\n Common Instructions",
+      "word_count": 133
+    },
+    {
+      "text": "xed: Indirect addressing with Y indexing\n13. Relative: For branch instructions\n\n Common Instructions\n\n Load/Store Instructions\n- LDA: Load Accumulator\n- LDX: Load X Register\n- LDY: Load Y Register\n- STA: Store Accumulator\n- STX: Store X Register\n- STY: Store Y Register\n\n Arithmetic Operations\n- ADC: Add with Carry\n- SBC: Subtract with Carry\n- INC: Increment Memory\n- DEC: Decrement Memory\n- INX: Increment X\n- DEX: Decrement X\n- INY: Increment Y\n- DEY: Decrement Y\n\n Logical Operations\n- AND: Logical AND\n- ORA: Logical OR\n- EOR: Logical XOR\n- BIT: Bit Test\n\n Control Flow\n- JMP: Jump to address\n- JSR: Jump to Subroutine\n- RTS: Return from Subroutine\n- BEQ: Branch if Equal to Zero\n- BNE: Branch if Not Equal\n- BCS: Branch if Carry Set\n- BCC: Branch if Carry Clear\n\n Instruction Timing\n\nEach instruction takes a specific number of clock cycles to execute:\n- Fastest instructions: 2 cycles e.g., NOP, DEX\n- Slowest instructions: 6+ cycles e.g., absolute indirect addressing\n\n Status Register Flags",
+      "word_count": 172
+    },
+    {
+      "text": "OP, DEX\n- Slowest instructions: 6+ cycles e.g., absolute indirect addressing\n\n Status Register Flags\n\nThe Status Register contains 8 flags that affect program flow:\n\n- C Carry: Set if arithmetic operation produces a carry\n- Z Zero: Set if result is zero\n- I Interrupt Disable: Prevents interrupts when set\n- D Decimal: Enables decimal mode\n- B Break: Set when a break instruction is executed\n- V Overflow: Set if arithmetic operation overflows\n- N Negative: Set if result is negative bit 7 = 1\n\n Conclusion\n\nThe 6502 remains a classic microprocessor due to its simplicity and power. Its clean instruction set and efficient addressing modes made it popular for embedded systems and game consoles. Understanding the 6502 provides valuable insights into microprocessor design and low-level programming.",
+      "word_count": 128
+    }
+  ],
+  "chunk_count": 4,
+  "total_words": 584,
+  "added_at": "2025-12-18T12:07:08.315953",
+  "indexed": false
+}
