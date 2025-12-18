@@ -28,6 +28,7 @@ from usage_stats import record_request, interactive_stats_menu
 from semantic_search import EmbeddingIndex, interactive_semantic_search, display_search_results
 from rag import RAGEngine, interactive_rag_settings
 from kb_manager import KnowledgeBase, interactive_kb_menu
+from image_generator import ImageGenerator, interactive_image_generator
 
 load_dotenv()
 
@@ -59,6 +60,15 @@ try:
 except Exception as e:
     print(f"Warning: Knowledge Base not available: {e}")
     knowledge_base = None
+
+# Initialize Image Generator
+try:
+    image_generator = ImageGenerator()
+    image_generation_available = True
+except Exception as e:
+    print(f"Warning: Image generation not available: {e}")
+    image_generator = None
+    image_generation_available = False
 
 # Conversation history storage
 conversation_history = []
@@ -815,6 +825,7 @@ def main():
     print("  - Type 'params' to manage model parameters")
     print("  - Type 'rag' to configure RAG settings")
     print("  - Type 'kb' to manage knowledge base documents")
+    print("  - Type 'image' to generate images with DALL-E 3")
     print("  - Type 'history' to view conversation history")
     print("  - Type 'save' to save current conversation")
     print("  - Type 'load' to load a saved conversation")
@@ -985,6 +996,13 @@ def main():
                     interactive_kb_menu(knowledge_base)
                 else:
                     print("Knowledge Base not available")
+                continue
+            
+            if user_input.lower() == 'image':
+                if image_generator:
+                    interactive_image_generator(image_generator)
+                else:
+                    print("Image generation not available")
                 continue
             
             # Validate input

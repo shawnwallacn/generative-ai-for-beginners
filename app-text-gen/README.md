@@ -247,6 +247,13 @@ Default model: gpt-4o-mini
 - **Automatic chunking**: Documents are split for optimal embedding and retrieval
 - **Multiple formats**: Supports plain text, Markdown, and PDF documents
 
+#### Image Generation
+- **Generate images**: Type `image` to open image generation menu
+- **DALL-E 3 integration**: Create high-quality images from text prompts
+- **Multiple metaprompts**: Safety-friendly or artistic styles available
+- **Prompt templates**: Save and reuse favorite image prompts
+- **Image tracking**: Automatic metadata and statistics
+
 #### Usage Statistics
 - **View stats**: Type `stats` to see your API usage, token counts, and cost estimates
 - **Model comparison**: Compare usage and cost across different models
@@ -1037,6 +1044,95 @@ The **LDA** instruction stands for **Load Accumulator**...
 - `index-kb` - Index all KB documents with embeddings
 - `kb-search` - Search only KB documents
 
+### Image Generation with DALL-E 3 (NEW!)
+
+Generate stunning AI images directly from your app using Azure OpenAI DALL-E 3:
+
+**Features:**
+- ✅ High-quality image generation from text prompts
+- ✅ Multiple image sizes (1024x1024, 1024x1792, 1792x1024)
+- ✅ Quality options (standard or HD)
+- ✅ Built-in safety metaprompts for family-friendly images
+- ✅ Artistic metaprompts for professional-quality images
+- ✅ Save and reuse prompt templates
+- ✅ Automatic image metadata tracking
+- ✅ Usage statistics and monitoring
+
+**Interactive Menu Options:**
+```
+Enter your prompt (or command): image
+
+============================================================
+Image Generation with DALL-E 3
+============================================================
+
+Options:
+1. Generate image from prompt
+2. Generate with safety metaprompt (family-friendly)
+3. Generate with artistic metaprompt (professional)
+4. Use saved prompt template
+5. Save prompt template
+6. List saved prompts
+7. View generated images
+8. View statistics
+0. Back to main menu
+
+Select option (0-8): 1
+Enter image prompt: a futuristic city at sunset with neon lights
+Size (1024x1024/1024x1792/1792x1024) [default: 1024x1024]: 
+Quality (standard/hd) [default: standard]: hd
+
+[+] Image generated successfully
+[+] Image saved: generated_images/image_20251218_141259.png
+[+] File size: 3089.2 KB
+```
+
+**Example Workflows:**
+
+1. **Generate Basic Image:**
+   ```
+   Option 1 → Enter prompt → Select size and quality
+   ```
+
+2. **Safe for Children:**
+   ```
+   Option 2 (safety metaprompt) → Enter kid-friendly prompt
+   ```
+
+3. **Professional/Artistic:**
+   ```
+   Option 3 (artistic metaprompt) → Enter artistic description
+   ```
+
+4. **Save and Reuse:**
+   ```
+   Option 5 → Name: "sunset-city" → Save prompt
+   Later: Option 4 → Select "sunset-city" → Image generated
+   ```
+
+**Files and Directory Structure:**
+```
+app-text-gen/generated_images/
+├── image_20251218_141259.png       # Generated images
+├── image_metadata.json             # Tracks all images with metadata
+└── image_prompts.json              # Saved prompt templates
+```
+
+**Metadata Tracked:**
+- Image filename and prompt
+- Generation timestamp
+- Size and quality settings
+- File size (in KB)
+- Direct Azure URL for future reference
+
+**Cost & Usage:**
+With your Azure $70/month MSDN credit:
+- **~1,750 standard images** per month ($0.040 each)
+- **~580 HD images** per month ($0.120 each)
+
+**Commands:**
+- `image` - Open image generation menu
+
 ### Usage Statistics & Monitoring
 
 Track your API usage and costs:
@@ -1132,6 +1228,7 @@ You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [sr
 - **RAG (Retrieval-Augmented Generation)**: Automatic context retrieval augments LLM responses with relevant conversation history (Phase 2 ✅)
 - **Knowledge Base Management**: Add and manage external documents for enhanced context (Phase 3 ✅)
 - **KB-RAG Integration**: Search both conversations and KB documents for comprehensive context (Phase 3b ✅)
+- **Image Generation**: Create AI images with DALL-E 3 from text prompts (NEW! ✅)
 
 ### Quality & Monitoring
 - **Feedback System**: Rate and flag responses for quality assurance

@@ -1,0 +1,15 @@
+{
+  "images": [
+    {
+      "id": "image_20251218_141259",
+      "filename": "image_20251218_141259.png",
+      "prompt": "christmas tree",
+      "size": "1024x1024",
+      "quality": "standard",
+      "style": "vivid",
+      "url": "https://dalleproduse.blob.core.windows.net/private/images/f6ebe7bc-dab0-403c-8aba-85cd53bb5015/generated_00.png?se=2025-12-19T21%3A12%3A57Z&sig=prmG%2FiKKKDzo1ZK5cM15QQN1cYV61pJX4%2Fmizpr7fuU%3D&ske=2025-12-23T12%3A33%3A53Z&skoid=09ba021e-c417-441c-b203-c81e5dcd7b7f&sks=b&skt=2025-12-16T12%3A33%3A53Z&sktid=33e01921-4d64-4f8c-a055-5bdaffd5e33d&skv=2020-10-02&sp=r&spr=https&sr=b&sv=2020-10-02",
+      "generated_at": "2025-12-18T14:12:59.194807",
+      "file_size_kb": 3089.1513671875
+    }
+  ]
+}
