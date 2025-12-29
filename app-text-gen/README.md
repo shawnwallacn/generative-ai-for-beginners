@@ -25,6 +25,8 @@ app-text-gen
 │   ├── semantic_search.py          # Semantic search with Azure OpenAI embeddings
 │   ├── rag.py                      # RAG (Retrieval-Augmented Generation) engine
 │   ├── kb_manager.py               # Knowledge Base document management
+│   ├── image_generator.py           # DALL-E 3 image generation
+│   ├── function_calling.py         # Function calling for LLM-controlled tool invocation
 │   └── utils.py                    # Utility functions
 ├── conversations/                  # Saved conversation files (JSON format)
 ├── profiles/                       # User profile configurations (JSON format)
@@ -38,6 +40,10 @@ app-text-gen
 │   ├── collections/                # Document collections
 │   ├── documents/                  # Stored documents
 │   └── kb_index.json               # Knowledge Base index
+├── generated_images/               # Generated DALL-E 3 images (PNG format)
+├── function_calling/               # Function calling artifacts
+│   ├── code_snippets.json          # Extracted code snippets
+│   └── summaries.json              # Created summaries
 ├── statistics/                     # Usage statistics (CSV/JSON format)
 ├── .env                            # Environment variables (GITHUB_TOKEN, AZURE_OPENAI_*, etc.)
 ├── requirements.txt                # List of dependencies
@@ -254,6 +260,13 @@ Default model: gpt-4o-mini
 - **Prompt templates**: Save and reuse favorite image prompts
 - **Image tracking**: Automatic metadata and statistics
 
+#### Function Calling
+- **KB search via LLM**: Type prompts like "Search KB for LDA instruction" - LLM decides to use function automatically
+- **Extract code snippets**: LLM extracts and saves code from conversations
+- **Create summaries**: LLM generates and stores structured summaries
+- **View snippets**: Type `fc-snippets` to see all extracted code snippets
+- **View summaries**: Type `fc-summaries` to see all created summaries
+
 #### Usage Statistics
 - **View stats**: Type `stats` to see your API usage, token counts, and cost estimates
 - **Model comparison**: Compare usage and cost across different models
@@ -261,6 +274,7 @@ Default model: gpt-4o-mini
 - **Export statistics**: Export usage data to CSV
 
 #### Program Control
+- **Help**: Type `help` to display all available commands
 - **Exit**: Type `exit` or `quit` to end the program
 - **Interrupt**: Press `Ctrl+C` to stop the app
 
@@ -1200,6 +1214,65 @@ Your account may have access to different models based on availability. The curr
 
 You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [src/config.py](src/config.py).
 
+## Function Calling (NEW!)
+
+**Function Calling** enables the LLM to intelligently call tools and functions based on user requests. This project implements function calling to provide structured tool integration.
+
+### How Function Calling Works
+
+Function calling follows a 3-step process:
+
+1. **LLM Receives Options**: The LLM is provided with a list of available functions and their signatures
+2. **LLM Decides**: Based on the user's input, the LLM decides if a function should be called and with what arguments
+3. **Execute & Respond**: The chosen function is executed, results are sent back to the LLM for a natural language response
+
+### Available Functions
+
+#### Phase 1: Knowledge Base Query
+- **`search_knowledge_base(query, collection)`** - Search your Knowledge Base documents using semantic similarity
+- **`get_kb_document(document_id)`** - Retrieve the full content of a specific KB document
+- **`get_kb_stats(collection)`** - Get statistics about your Knowledge Base
+
+#### Phase 2: Data Extraction
+- **`extract_code_snippet(language, title, code, description)`** - Extract and store code snippets from conversations
+- **`create_summary(topic, key_points, explanation)`** - Create structured summaries for study materials
+
+### Example Usage
+
+```
+User: "Search our knowledge base for details about LDA instruction"
+
+[FC] LLM requested function: search_knowledge_base
+[FUNCTION CALL] Executing: search_knowledge_base
+[FUNCTION CALL] Arguments: {
+  "query": "LDA instruction details",
+  "collection": "6502-docs"
+}
+[FC] Function result: Found 3 KB documents matching 'LDA instruction details':
+1. **6502 Microprocessor Guide** - Relevance: 49.5%
+
+[FC] Getting natural language response from LLM...
+
+Here's what I found in the knowledge base regarding the **LDA** instruction...
+```
+
+### Viewing Extracted Data
+
+- **`fc-snippets`** - View all extracted code snippets
+- **`fc-summaries`** - View all created summaries
+
+Data is automatically persisted to:
+- `function_calling/code_snippets.json` - Extracted code
+- `function_calling/summaries.json` - Created summaries
+
+### Extending Function Calling
+
+To add new functions, see [FUNCTION_CALLING_GUIDE.md](FUNCTION_CALLING_GUIDE.md) for detailed instructions on:
+- Defining new function schemas
+- Implementing function logic
+- Integrating with the app
+- Testing and debugging
+
 ## Features
 
 ### Core Features
@@ -1229,6 +1302,7 @@ You can add or remove models by editing the `AVAILABLE_MODELS` dictionary in [sr
 - **Knowledge Base Management**: Add and manage external documents for enhanced context (Phase 3 ✅)
 - **KB-RAG Integration**: Search both conversations and KB documents for comprehensive context (Phase 3b ✅)
 - **Image Generation**: Create AI images with DALL-E 3 from text prompts (NEW! ✅)
+- **Function Calling**: LLM-controlled tool invocation for KB search and data extraction (NEW! ✅)
 
 ### Quality & Monitoring
 - **Feedback System**: Rate and flag responses for quality assurance

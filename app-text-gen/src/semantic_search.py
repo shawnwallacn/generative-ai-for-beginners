@@ -353,8 +353,13 @@ class EmbeddingIndex:
                 indexed_count += 1
                 print(f"    [+] Indexed successfully ({len(chunks)} chunks added)")
                 
-                # Mark document as indexed
+                # Mark document as indexed and save it back to KB manager
                 doc["indexed"] = True
+                try:
+                    # Save the updated document file with indexed=True
+                    kb_manager._save_document_file(doc)
+                except Exception as save_error:
+                    print(f"    Warning: Could not save indexed status to KB: {save_error}")
                 
             except Exception as e:
                 print(f"    Error indexing {doc['title']}: {e}")

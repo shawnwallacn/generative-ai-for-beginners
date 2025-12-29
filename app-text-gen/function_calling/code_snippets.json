@@ -1,0 +1,18 @@
+[
+  {
+    "id": "snippet_0_1767022892",
+    "language": "6502_asm",
+    "title": "Basic LDA Instruction Example",
+    "code": "LDA #$42  ; Load immediate value $42 into the accumulator register A",
+    "description": "Demonstrates loading an immediate value into the accumulator using the LDA instruction.",
+    "created_at": "2025-12-29T08:41:32.816304"
+  },
+  {
+    "id": "snippet_1_1767023387",
+    "language": "6502_asm",
+    "title": "LDA Immediate Example",
+    "code": "LDA #$20",
+    "description": "Loads the value $20 (decimal 32) into the accumulator using the immediate addressing mode.",
+    "created_at": "2025-12-29T08:49:47.565321"
+  }
+]

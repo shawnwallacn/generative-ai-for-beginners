@@ -1,0 +1,17 @@
+[
+  {
+    "id": "summary_0_1767021529",
+    "topic": "6502 Instruction Set",
+    "key_points": [
+      "56 official instructions",
+      "Instructions grouped by function: data movement, arithmetic, logic, shifts/rotates, branching, stack operations, system/status",
+      "8-bit data operations with 16-bit addressing",
+      "Supports multiple addressing modes (immediate, absolute, zero page, indexed, indirect, etc.)",
+      "Common instructions: LDA, STA, ADC, SBC, JMP, JSR, BEQ, BNE, etc.",
+      "No native multiplication/division instructions",
+      "Used in classic computers and game consoles (Commodore 64, NES, Apple II, etc.)"
+    ],
+    "explanation": "",
+    "created_at": "2025-12-29T08:18:49.095911"
+  }
+]

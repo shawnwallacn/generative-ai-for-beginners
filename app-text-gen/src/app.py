@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -29,6 +30,7 @@ from semantic_search import EmbeddingIndex, interactive_semantic_search, display
 from rag import RAGEngine, interactive_rag_settings
 from kb_manager import KnowledgeBase, interactive_kb_menu
 from image_generator import ImageGenerator, interactive_image_generator
+from function_calling import FunctionDefinitions, FunctionExecutor
 
 load_dotenv()
 
@@ -70,6 +72,18 @@ except Exception as e:
     image_generator = None
     image_generation_available = False
 
+# Initialize Function Calling
+try:
+    function_executor = FunctionExecutor(
+        kb_manager=knowledge_base,
+        semantic_search_index=embedding_index
+    )
+    function_calling_available = True
+except Exception as e:
+    print(f"Warning: Function calling not available: {e}")
+    function_executor = None
+    function_calling_available = False
+
 # Conversation history storage
 conversation_history = []
 
@@ -87,6 +101,108 @@ profile_name = "default"
 # Track last response for feedback
 last_response = None
 last_prompt = None
+
+def handle_function_calls(messages, model_name):
+    """
+    Handle function calling in the chat flow.
+    
+    Steps:
+    1. Call the LLM with function definitions
+    2. Check if the LLM wants to call a function
+    3. Execute the function if needed
+    4. Call the LLM again with function results
+    
+    Returns:
+        (final_response, function_calls_made)
+    """
+    if not function_executor or not function_calling_available:
+        return None, False
+    
+    client = OpenAI(
+        api_key=GITHUB_TOKEN,
+        base_url=GITHUB_MODELS_ENDPOINT
+    )
+    
+    params = model_params.get_all_parameters()
+    
+    try:
+        # Step 1: Call LLM with function definitions
+        print("\n[FC] Checking if function calling is needed...")
+        
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            functions=FunctionDefinitions.get_all_functions(),
+            function_call="auto",
+            temperature=params['temperature'],
+            max_tokens=params['max_tokens'],
+            top_p=params['top_p'],
+        )
+        
+        response_message = response.choices[0].message
+        
+        # Step 2: Check if LLM wants to call a function
+        if not hasattr(response_message, 'function_call') or not response_message.function_call:
+            return None, False
+        
+        # Step 3: Execute the function
+        function_name = response_message.function_call.name
+        function_args = json.loads(response_message.function_call.arguments)
+        
+        print(f"[FC] LLM requested function: {function_name}")
+        function_result = function_executor.execute_function(function_name, function_args)
+        print(f"[FC] Function result: {function_result[:200]}..." if len(function_result) > 200 else f"[FC] Function result: {function_result}")
+        
+        # Step 4: Add function call and result to messages
+        messages.append({
+            "role": "assistant",
+            "function_call": {
+                "name": function_name,
+                "arguments": response_message.function_call.arguments,
+            },
+            "content": None
+        })
+        
+        messages.append({
+            "role": "function",
+            "name": function_name,
+            "content": function_result,
+        })
+        
+        # Step 5: Call LLM again for natural language response with streaming
+        print("[FC] Getting natural language response from LLM...")
+        
+        final_response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            functions=FunctionDefinitions.get_all_functions(),
+            function_call="auto",
+            temperature=params['temperature'],
+            max_tokens=params['max_tokens'],
+            top_p=params['top_p'],
+            stream=True  # Enable streaming for better UX
+        )
+        
+        # Stream the response
+        full_response = ""
+        for chunk in final_response:
+            try:
+                if (chunk.choices and 
+                    len(chunk.choices) > 0 and 
+                    chunk.choices[0].delta and 
+                    chunk.choices[0].delta.content):
+                    content = chunk.choices[0].delta.content
+                    print(content, end="", flush=True)
+                    full_response += content
+            except (AttributeError, IndexError, TypeError):
+                continue
+        
+        print()  # New line at the end
+        return full_response, True
+    
+    except Exception as e:
+        print(f"[FC] Error in function calling: {e}")
+        return None, False
 
 def generate_text_streaming(prompt, model_name):
     """Generate text using GitHub Models with streaming output and conversation context"""
@@ -118,7 +234,31 @@ def generate_text_streaming(prompt, model_name):
             rag_engine.display_context_info(context_results, prompt)
     
     try:
-        # Use stream=True to get streaming response
+        # Step 1: Try function calling first
+        messages_for_fc = [
+            {"role": "system", "content": augmented_system_prompt},
+            *conversation_history
+        ]
+        
+        fc_response, function_was_called = handle_function_calls(messages_for_fc, model_name)
+        
+        if function_was_called and fc_response:
+            # Function was called and LLM provided response
+            print(f"\n{fc_response}\n")
+            last_response = fc_response
+            
+            # Add to conversation history
+            conversation_history.append({
+                "role": "assistant",
+                "content": fc_response
+            })
+            
+            # Record usage
+            record_request(model=model_name, tokens=len(fc_response.split()), request_type="function_call")
+            
+            return
+        
+        # Step 2: If no function was called, use regular streaming response
         params = model_params.get_all_parameters()
         response = client.chat.completions.create(
             model=model_name,
@@ -783,6 +923,78 @@ def manage_model_parameters():
         else:
             print("Invalid choice.")
 
+def display_help():
+    """Display all available commands organized by category"""
+    print("\n" + "="*70)
+    print("AVAILABLE COMMANDS")
+    print("="*70)
+    
+    commands = {
+        "Chat & Conversation": [
+            ("model", "Switch to a different AI model"),
+            ("system", "Set a custom system prompt/instructions"),
+            ("prompt", "Display the current system prompt"),
+            ("history", "View conversation history"),
+            ("save", "Save current conversation"),
+            ("load", "Load a saved conversation"),
+            ("clear", "Clear conversation history"),
+        ],
+        "Prompt Management": [
+            ("template", "Use a pre-built prompt template"),
+            ("create-template", "Create a custom prompt template"),
+        ],
+        "Response Feedback": [
+            ("rate", "Rate the last response (1-5 stars)"),
+            ("feedback-stats", "View feedback statistics"),
+            ("flagged", "View flagged responses"),
+        ],
+        "Search & Analysis": [
+            ("search", "Search saved conversations by keywords"),
+            ("analyze", "Analyze a conversation"),
+        ],
+        "Semantic Search & Embeddings": [
+            ("semantic-search", "AI-powered search of conversations"),
+            ("index", "Index current conversation with embeddings"),
+            ("index-kb", "Index Knowledge Base documents"),
+            ("kb-search", "Search Knowledge Base documents"),
+            ("embedding-stats", "View embedding index statistics"),
+        ],
+        "Knowledge Base": [
+            ("kb", "Manage Knowledge Base documents"),
+        ],
+        "Image Generation": [
+            ("image", "Generate images with DALL-E 3"),
+        ],
+        "RAG & Context": [
+            ("rag", "Configure RAG settings"),
+        ],
+        "Function Calling": [
+            ("fc-snippets", "View extracted code snippets"),
+            ("fc-summaries", "View extracted summaries"),
+        ],
+        "Batch Processing": [
+            ("batch", "Manage batch jobs"),
+            ("batch-run", "Execute a batch job"),
+        ],
+        "Data Export & Statistics": [
+            ("export", "Export a conversation"),
+            ("stats", "View usage statistics"),
+            ("params", "Manage model parameters"),
+        ],
+        "Program Control": [
+            ("help", "Display this help message"),
+            ("exit / quit", "End the program"),
+        ],
+    }
+    
+    for category, cmds in commands.items():
+        print(f"\n{category}:")
+        print("-" * 70)
+        for cmd, desc in cmds:
+            print(f"  {cmd:<20} {desc}")
+    
+    print("\n" + "="*70 + "\n")
+
 def main():
     """Main interactive loop for the text generation app"""
     global current_model, current_profile, profile_name
@@ -795,7 +1007,7 @@ def main():
     # Load user profile (automatically sets current_model and system_prompt from profile)
     select_profile()
     
-    print("\nThis app uses GitHub Models to generate text based on your prompts.")
+    print("\nThis app uses GitHub Models to generate text based on your prompts. Type 'help' at any time to see all available commands.")
     print("Commands:")
     print("  - Type your prompt and press Enter to chat")
     print("  - Type 'model' to change the AI model")
@@ -826,10 +1038,13 @@ def main():
     print("  - Type 'rag' to configure RAG settings")
     print("  - Type 'kb' to manage knowledge base documents")
     print("  - Type 'image' to generate images with DALL-E 3")
+    print("  - Type 'fc-snippets' to view extracted code snippets")
+    print("  - Type 'fc-summaries' to view extracted summaries")
     print("  - Type 'history' to view conversation history")
     print("  - Type 'save' to save current conversation")
     print("  - Type 'load' to load a saved conversation")
     print("  - Type 'clear' to clear conversation history")
+    print("  - Type 'help' to see all available commands")
     print("  - Type 'exit' or 'quit' to end the program\n")
     
     # Get available models from config
@@ -848,6 +1063,10 @@ def main():
             if user_input.lower() in ['exit', 'quit']:
                 print("\nThank you for using the Text Generation App. Goodbye!")
                 break
+            
+            if user_input.lower() == 'help':
+                display_help()
+                continue
             
             if user_input.lower() == 'model':
                 current_model = select_model(available_models)
@@ -1003,6 +1222,46 @@ def main():
                     interactive_image_generator(image_generator)
                 else:
                     print("Image generation not available")
+                continue
+            
+            if user_input.lower() == 'fc-snippets':
+                if function_executor:
+                    snippets = function_executor.list_code_snippets()
+                    if not snippets:
+                        print("\nNo code snippets extracted yet.")
+                    else:
+                        print(f"\n[Function Calling] Extracted Code Snippets ({len(snippets)} total):")
+                        print("=" * 70)
+                        for snippet in snippets:
+                            print(f"\nTitle: {snippet['title']}")
+                            print(f"Language: {snippet['language']}")
+                            print(f"Description: {snippet.get('description', 'N/A')}")
+                            print(f"ID: {snippet['id']}")
+                            print(f"Created: {snippet['created_at']}")
+                            print(f"Code:\n{snippet['code']}")
+                            print("-" * 70)
+                else:
+                    print("Function calling not available")
+                continue
+            
+            if user_input.lower() == 'fc-summaries':
+                if function_executor:
+                    summaries = function_executor.list_summaries()
+                    if not summaries:
+                        print("\nNo summaries extracted yet.")
+                    else:
+                        print(f"\n[Function Calling] Extracted Summaries ({len(summaries)} total):")
+                        print("=" * 70)
+                        for summary in summaries:
+                            print(f"\nTopic: {summary['topic']}")
+                            print(f"ID: {summary['id']}")
+                            print(f"Created: {summary['created_at']}")
+                            print(f"Key Points: {', '.join(summary['key_points'])}")
+                            if summary.get('explanation'):
+                                print(f"Explanation: {summary['explanation']}")
+                            print("-" * 70)
+                else:
+                    print("Function calling not available")
                 continue
             
             # Validate input
