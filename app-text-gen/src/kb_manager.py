@@ -10,6 +10,10 @@ import re
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
+from security import InputValidator
+
+# Import audit logger (will be set by app.py)
+audit_logger = None
 
 
 KB_DIR = "knowledge_base"
@@ -326,6 +330,18 @@ class KnowledgeBase:
         Returns:
             True if successful, False otherwise
         """
+        # Security: Validate file before processing
+        validation = InputValidator.validate_file(filepath)
+        if not validation['is_valid']:
+            print(f"[VALIDATION ERROR] Cannot add document:")
+            for error in validation['errors']:
+                print(f"  - {error}")
+            return False
+        
+        # Display warnings if any
+        for warning in validation['warnings']:
+            print(f"  [WARNING] {warning}")
+        
         # Check if file exists
         if not os.path.exists(filepath):
             print(f"File not found: {filepath}")
@@ -392,6 +408,17 @@ class KnowledgeBase:
         print(f"  - Chunks: {len(chunks)}")
         print(f"  - Total words: {document['total_words']}")
         print(f"  - Document ID: {doc_id}")
+        
+        # Log to audit trail
+        if audit_logger:
+            audit_logger.log_user_action('KB_DOCUMENT_ADDED', {
+                'doc_id': doc_id,
+                'title': title,
+                'collection': collection_name,
+                'chunk_count': len(chunks),
+                'total_words': document['total_words'],
+                'file_format': Path(filepath).suffix,
+            })
         
         return True
     

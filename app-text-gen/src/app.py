@@ -36,11 +36,29 @@ from ux_improvements import (
     DataTransparency, ConversationStarters
 )
 from privacy_settings import PrivacySettings
+from security import (
+    PromptInjectionDetector, SensitiveDataDetector, RateLimiter, 
+    InputValidator, display_security_status
+)
+from audit_logger import AuditLogger, display_audit_summary, display_recent_events, display_security_incidents
+import security  # For setting the audit_logger reference
+import kb_manager  # For sharing audit_logger
 
 load_dotenv()
 
 # Initialize model parameters
 model_params = ModelParameters()
+
+# Initialize audit logger
+audit_logger = AuditLogger()
+security.audit_logger = audit_logger  # Share with security module
+kb_manager.audit_logger = audit_logger  # Share with kb_manager module
+
+# Initialize security components
+prompt_injection_detector = PromptInjectionDetector()
+sensitive_data_detector = SensitiveDataDetector()
+rate_limiter = RateLimiter()
+input_validator = InputValidator()
 
 # Initialize embedding index for semantic search
 try:
@@ -220,6 +238,35 @@ def generate_text_streaming(prompt, model_name):
     """Generate text using GitHub Models with streaming output and conversation context"""
     global last_response, last_prompt, rag_engine
     
+    # Security Check 1: Check for prompt injection attempts
+    injection_check = prompt_injection_detector.check_prompt(prompt)
+    if injection_check['is_suspicious']:
+        print(injection_check['recommendation'])
+        if injection_check['risk_level'] == 'danger':
+            print("[BLOCKED] Prompt blocked due to high security risk.")
+            return
+        elif injection_check['risk_level'] == 'warning':
+            response = input("Continue anyway? (y/n): ").lower().strip()
+            if response != 'y':
+                print("Prompt cancelled.")
+                return
+    
+    # Security Check 1b: Check for sensitive data in user input
+    input_sensitivity_check = sensitive_data_detector.scan_input(prompt)
+    if input_sensitivity_check['has_sensitive_data']:
+        print(input_sensitivity_check['warning'])
+        print("   Detected types:", ', '.join(input_sensitivity_check['detected_items'].keys()))
+    
+    # Security Check 2: Check rate limits
+    rate_check = rate_limiter.check_limits()
+    if rate_check['status'] == 'exceeded':
+        print("\n".join(rate_check['warnings']))
+        print("[BLOCKED] Rate limit exceeded. Wait a moment and try again.")
+        return
+    elif rate_check['warnings']:
+        for warning in rate_check['warnings']:
+            print(warning)
+    
     client = OpenAI(
         api_key=GITHUB_TOKEN,
         base_url=GITHUB_MODELS_ENDPOINT
@@ -306,6 +353,12 @@ def generate_text_streaming(prompt, model_name):
         
         print()  # New line at the end
         
+        # Security Check 3: Scan response for sensitive data leakage
+        sensitivity_check = sensitive_data_detector.scan_output(full_response)
+        if sensitivity_check['has_sensitive_data']:
+            print("\n" + sensitivity_check['warning'])
+            print("   Detected types:", ', '.join(sensitivity_check['detected_items'].keys()))
+        
         # Add assistant response to conversation history
         conversation_history.append({
             "role": "assistant",
@@ -319,6 +372,9 @@ def generate_text_streaming(prompt, model_name):
         prompt_tokens = len(prompt.split()) + len(augmented_system_prompt.split())
         completion_tokens = len(full_response.split())
         record_request(model_name, prompt_tokens, completion_tokens, augmented_system_prompt)
+        
+        # Record for rate limiting
+        rate_limiter.record_request(tokens_used=completion_tokens)
         
         return full_response
         
@@ -340,6 +396,13 @@ def generate_text_streaming(prompt, model_name):
             presence_penalty=params['presence_penalty']
         )
         result = response.choices[0].message.content
+        
+        # Security Check 3: Scan response for sensitive data leakage
+        sensitivity_check = sensitive_data_detector.scan_output(result)
+        if sensitivity_check['has_sensitive_data']:
+            print("\n" + sensitivity_check['warning'])
+            print("   Detected types:", ', '.join(sensitivity_check['detected_items'].keys()))
+        
         print(result)
         
         # Add to history
@@ -355,6 +418,9 @@ def generate_text_streaming(prompt, model_name):
         prompt_tokens = len(prompt.split()) + len(system_prompt.split())
         completion_tokens = len(result.split())
         record_request(model_name, prompt_tokens, completion_tokens, system_prompt)
+        
+        # Record for rate limiting
+        rate_limiter.record_request(tokens_used=completion_tokens)
         
         return result
 
@@ -404,6 +470,11 @@ def select_model(available_models):
         if choice in model_mapping:
             selected_model = model_mapping[choice]
             print(f"Selected model: {selected_model}")
+            
+            # Log user action
+            if audit_logger:
+                audit_logger.log_user_action('MODEL_CHANGED', {'new_model': selected_model})
+            
             return selected_model
         else:
             print(f"Invalid choice. Please select a number between 1-{max_choice}.")
@@ -431,6 +502,10 @@ def clear_conversation_history():
     global conversation_history
     conversation_history = []
     print("Conversation history cleared.")
+    
+    # Log user action
+    if audit_logger:
+        audit_logger.log_user_action('CONVERSATION_CLEARED')
 
 def set_system_prompt():
     """Allow user to set a custom system prompt"""
@@ -450,6 +525,10 @@ def set_system_prompt():
     if custom_prompt:
         system_prompt = custom_prompt
         print(f"\nSystem prompt updated to: {system_prompt}")
+        
+        # Log user action
+        if audit_logger:
+            audit_logger.log_user_action('SYSTEM_PROMPT_CHANGED', {'new_prompt_length': len(custom_prompt)})
     else:
         system_prompt = DEFAULT_SYSTEM_PROMPT
         print(f"\nSystem prompt reset to default: {system_prompt}")
@@ -488,6 +567,13 @@ def save_current_conversation():
     try:
         saved_file = save_conversation(conversation_history, system_prompt, current_model, filename)
         print(f"✓ Conversation saved to: {saved_file}")
+        
+        # Log user action
+        if audit_logger:
+            audit_logger.log_user_action('CONVERSATION_SAVED', {
+                'filename': saved_file,
+                'message_count': len(conversation_history)
+            })
     except Exception as e:
         print(f"Error saving conversation: {e}")
 
@@ -1022,6 +1108,8 @@ def display_help():
         ],
         "Program Control": [
             ("help", "Display this help message"),
+            ("security", "View model security status and settings"),
+            ("audit", "View security audit trail and incidents"),
             ("privacy", "View privacy and data collection settings"),
             ("exit / quit", "End the program"),
         ],
@@ -1086,6 +1174,8 @@ def main():
     print("  - Type 'clear' to clear conversation history")
     print("  - Type 'help' to see all available commands")
     print("  - Type 'privacy' to review data collection settings")
+    print("  - Type 'security' to view model security status and settings")
+    print("  - Type 'audit' to view security audit trail and incidents")
     print("  - Type 'exit' or 'quit' to end the program\n")
     
     # Get available models from config
@@ -1303,6 +1393,43 @@ def main():
                             print("-" * 70)
                 else:
                     print("Function calling not available")
+                continue
+            
+            if user_input.lower() == 'security':
+                display_security_status()
+                continue
+            
+            if user_input.lower() == 'audit':
+                # Show audit menu - loop until user exits
+                while True:
+                    print("\n" + "=" * 70)
+                    print("AUDIT TRAIL OPTIONS")
+                    print("=" * 70)
+                    print("1. View audit summary")
+                    print("2. View recent events (last 20)")
+                    print("3. View security incidents (last 24 hours)")
+                    print("4. View all security incidents (last 30 days)")
+                    print("5. Export audit report")
+                    print("0. Back to main menu")
+                    choice = input("\nSelect option (0-5): ").strip()
+                    
+                    if choice == '0':
+                        break
+                    elif choice == '1':
+                        display_audit_summary(audit_logger)
+                    elif choice == '2':
+                        display_recent_events(audit_logger, limit=20)
+                    elif choice == '3':
+                        display_security_incidents(audit_logger, hours=24)
+                    elif choice == '4':
+                        display_security_incidents(audit_logger, hours=24*30)
+                    elif choice == '5':
+                        export_file = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                        audit_logger.export_audit_report(export_file)
+                        print(f"\nAudit report exported to: {export_file}\n")
+                    else:
+                        print("Invalid option. Please select 0-5.")
+                
                 continue
             
             if user_input.lower() == 'privacy':

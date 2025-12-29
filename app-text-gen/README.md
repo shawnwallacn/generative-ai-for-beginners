@@ -10,6 +10,7 @@ The project is organized as follows:
 app-text-gen
 ├── src
 │   ├── app.py                      # Main entry point of the application
+│   ├── audit_logger.py             # 
 │   ├── config.py                   # Configuration settings and model definitions
 │   ├── github_models_api.py        # GitHub Models API utilities
 │   ├── conversation_manager.py     # Save/load conversation functionality
@@ -275,6 +276,8 @@ Default model: gpt-4o-mini
 
 #### Program Control
 - **Help**: Type `help` to display all available commands
+- **Security**: Type `security` to view security status and settings
+- **Audit**: Type `audit` to view security audit trail and incidents
 - **Privacy**: Type `privacy` to view data collection and privacy settings
 - **Exit**: Type `exit` or `quit` to end the program
 - **Interrupt**: Press `Ctrl+C` to stop the app
@@ -1336,6 +1339,29 @@ See [UX_IMPROVEMENTS_SUMMARY.md](UX_IMPROVEMENTS_SUMMARY.md) for detailed UX imp
 - **Analytics**: Comprehensive conversation analysis and topic detection
 - **Usage Tracking**: Monitor token consumption and estimated costs
 - **Performance Monitoring**: Track response quality and engagement metrics
+
+### Security & Safety (Lesson 13 ✅)
+- **Prompt Injection Detection**: Detects and warns about malicious prompts before sending to LLM
+- **Sensitive Data Detection**: Scans responses for leaked sensitive information (emails, credit cards, API keys, etc.)
+- **Rate Limiting**: Prevents abuse and cost attacks with configurable request/token limits
+- **File Validation**: Validates KB uploads for format, size, and malicious content
+- **Privacy Controls**: User control over what data is auto-saved (conversations, feedback, statistics)
+- **Data Transparency**: Shows what data is being collected and where it's stored
+- **Secure Storage**: All data stored locally, no external sharing except API calls
+- **Audit Trail & Logging**: Comprehensive logging of all security events and user actions (JSONL format)
+
+See [SECURITY_FEATURES.md](SECURITY_FEATURES.md) for detailed security implementation.
+
+#### Audit Trail & Logging Commands
+- **Audit Summary**: View total events, critical incidents, and event breakdown
+- **Recent Events**: See the 20 most recent audit events
+- **Security Incidents**: View all CRITICAL security events (customizable time window)
+- **Export Report**: Export complete audit trail to JSON for compliance/analysis
+
+**Storage**: `audit_logs/` directory with:
+- `security_events.jsonl` - Prompt injections, data leakage, rate limits, file validation
+- `user_actions.jsonl` - Model changes, prompt changes, conversation saves
+- `audit_summary.json` - Statistics and metadata
 
 ## Contributing
 

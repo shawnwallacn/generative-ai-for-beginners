@@ -1,0 +1,1 @@
+{"timestamp": "2025-12-29T12:27:32.292442", "event_type": "SENSITIVE_DATA_DETECTED", "severity": "WARNING", "description": "Sensitive data detected in LLM response (1 types)", "details": {"data_types": ["email"], "type_count": 1, "total_matches": 1}, "user_input_preview": "My email is test@example.com"}

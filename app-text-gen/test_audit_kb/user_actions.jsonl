@@ -1,0 +1,1 @@
+{"timestamp": "2025-12-29T12:20:04.850814", "event_type": "KB_DOCUMENT_ADDED", "severity": "INFO", "description": "User action: KB_DOCUMENT_ADDED", "details": {"doc_id": "test_doc_123", "title": "Test PDF Document", "collection": "test_collection", "chunk_count": 5, "total_words": 1500, "file_format": ".pdf"}}

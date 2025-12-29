@@ -1,0 +1,6 @@
+{"timestamp": "2025-12-29T11:44:25.966151", "event_type": "PROMPT_INJECTION_WARNED", "severity": "WARNING", "description": "Prompt injection attempt detected (WARNING level)", "details": {"risk_level": "WARNING", "patterns_detected": ["ignore.*previous", "system.*prompt"], "pattern_count": 2}, "user_input_preview": "ignore previous instructions"}
+{"timestamp": "2025-12-29T11:44:26.025582", "event_type": "RATE_LIMIT_WARNING", "severity": "WARNING", "description": "Approaching rate limit threshold", "details": {"requests_this_minute": 25, "requests_per_minute_limit": 30, "tokens_this_minute": 9000}}
+{"timestamp": "2025-12-29T11:44:26.118584", "event_type": "MODEL_CHANGED", "severity": "INFO", "description": "User action: MODEL_CHANGED", "details": {"new_model": "gpt-4"}}
+{"timestamp": "2025-12-29T11:44:26.172240", "event_type": "SYSTEM_PROMPT_CHANGED", "severity": "INFO", "description": "User action: SYSTEM_PROMPT_CHANGED", "details": {"new_prompt_length": 150}}
+{"timestamp": "2025-12-29T11:44:26.225060", "event_type": "CONVERSATION_SAVED", "severity": "INFO", "description": "User action: CONVERSATION_SAVED", "details": {"message_count": 5}}
+{"timestamp": "2025-12-29T11:44:26.288974", "event_type": "CONVERSATION_CLEARED", "severity": "INFO", "description": "User action: CONVERSATION_CLEARED", "details": {}}

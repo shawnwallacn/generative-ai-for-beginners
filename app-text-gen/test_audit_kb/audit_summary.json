@@ -1,0 +1,12 @@
+{
+  "total_events": 1,
+  "events_by_type": {
+    "KB_DOCUMENT_ADDED": 1
+  },
+  "events_by_severity": {
+    "INFO": 1
+  },
+  "first_event": "2025-12-29T12:20:04.850814",
+  "last_event": "2025-12-29T12:20:04.850814",
+  "critical_count": 0
+}
