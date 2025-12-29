@@ -941,20 +941,52 @@ Add and manage external documents to create a personalized knowledge base. Docum
 **How Knowledge Base Works:**
 1. Create collections (logical groups of documents)
 2. Add documents (TXT, Markdown, PDF files)
-3. Documents are automatically chunked for optimal embedding
-4. KB documents are indexed alongside conversations
-5. RAG retrieves from both conversations AND knowledge base
-6. Get richer context for more informed responses
+3. Choose optimal chunking strategy for your content
+4. Documents are automatically chunked for optimal embedding
+5. KB documents are indexed alongside conversations
+6. RAG retrieves from both conversations AND knowledge base
+7. Get richer context for more informed responses
 
 **Supported Document Formats:**
 - **Plain Text (.txt)**: Simple text files, great for quick content
 - **Markdown (.md)**: Formatted text with structure, preserves readability
 - **PDF (.pdf)**: Complex documents, requires `pdfplumber` (optional: `pip install pdfplumber`)
 
-**Chunking Strategies:**
-- **Paragraphs** (default): Splits by paragraph breaks, best for most content
-- **Sentences**: Groups sentences together, good for technical docs
-- **Size-based**: Splits by character count, useful for uniform chunks
+**Advanced Chunking Strategies (NEW in Phase 1 - Enterprise ✅):**
+
+Choose the optimal chunking strategy based on your document type:
+
+1. **Paragraphs** (default)
+   - Groups paragraphs with character overlap
+   - Best for: Essays, long-form content, natural text
+   - Chunk size: ~100-150 words
+   - Preserves paragraph boundaries and context
+   
+2. **Sentences** (NLTK-based)
+   - Groups 5 sentences per chunk with overlap
+   - Best for: Technical documentation, structured content
+   - Chunk size: ~50-60 words
+   - Uses advanced sentence tokenization
+   
+3. **Size-based** (Fixed window)
+   - Splits into 500-character chunks with overlap
+   - Best for: Uniform processing, predictable chunk sizes
+   - Chunk size: ~60-80 words
+   - Consistent chunk boundaries
+   
+4. **Sliding Window** (Advanced - NEW)
+   - 400-character window with 200-character step (50% overlap)
+   - Best for: Continuous text (books, articles, tutorials)
+   - Chunk size: ~50-65 words
+   - Preserves cross-chunk context by overlapping windows
+   - Ideal for flowing narrative content
+   
+5. **Semantic** (Advanced - NEW)
+   - Groups sentences by semantic/topic similarity
+   - Best for: Mixed-topic documents, diverse content
+   - Chunk size: ~75-100 words
+   - Intelligent topic boundary detection
+   - Optimal for documents with multiple subjects
 
 **Example Workflow:**
 ```
@@ -987,22 +1019,43 @@ Select collection (number): 1
 File path: /path/to/document.md
 Document title (optional): Neural Networks Basics
 
-Chunking strategies:
+======================================================
+CHUNKING STRATEGIES
+======================================================
 1. Paragraphs (default)
+   - Groups paragraphs with overlap
+   - Best for: Essays, long-form content
+
 2. Sentences
-3. Size-based
-Select strategy (1-3): 1
+   - Groups 5 sentences per chunk
+   - Best for: Technical documentation
+
+3. Size-based (Sliding Window)
+   - Fixed 500 char chunks with overlap
+   - Best for: Continuous text, books
+
+4. Sliding Window (Advanced)
+   - 400 char window, 200 char step
+   - Best for: Preserving context
+
+5. Semantic (Advanced)
+   - Groups sentences by topic
+   - Best for: Mixed-topic documents
+
+Select strategy (1-5, default=1): 4
 
 Parsing document: /path/to/document.md
-Chunking with strategy: paragraphs
+Chunking with strategy: sliding_window
 ✓ Document added: Neural Networks Basics
-  - Chunks: 12
+  - Chunks: 18
   - Total words: 3,450
   - Document ID: doc_ai-research_0_1702900234
 ```
 
 **Knowledge Base Commands:**
 - `kb` - Open KB management menu
+- `index-kb` - Index all KB documents for RAG
+- `kb-search` - Search only KB documents
 - Create collections for organizing documents
 - Add documents from your filesystem
 - View statistics and indexed documents
@@ -1010,10 +1063,11 @@ Chunking with strategy: paragraphs
 
 **KB Features:**
 - **Collections**: Organize documents into logical groups
-- **Automatic Chunking**: Documents split intelligently for embeddings
+- **Advanced Chunking**: 5 intelligent chunking strategies for different content types
 - **Multiple Formats**: Support TXT, Markdown, and PDF
 - **Flexible Strategies**: Choose chunking method per document
-- **Statistics**: Track KB size, document count, and indexing status
+- **Strategy Metadata**: Tracks which strategy was used for each document
+- **Statistics**: Track KB size, document count, chunking details, and indexing status
 - **Index Management**: Auto-saves KB index to JSON
 - **RAG Integration**: KB documents automatically included in RAG context (Phase 3b ✅)
 
@@ -1342,7 +1396,7 @@ See [UX_IMPROVEMENTS_SUMMARY.md](UX_IMPROVEMENTS_SUMMARY.md) for detailed UX imp
 
 ### Security & Safety (Lesson 13 ✅)
 - **Prompt Injection Detection**: Detects and warns about malicious prompts before sending to LLM
-- **Sensitive Data Detection**: Scans responses for leaked sensitive information (emails, credit cards, API keys, etc.)
+- **Sensitive Data Detection**: Scans both user input and LLM responses for leaked sensitive information (emails, credit cards, API keys, etc.)
 - **Rate Limiting**: Prevents abuse and cost attacks with configurable request/token limits
 - **File Validation**: Validates KB uploads for format, size, and malicious content
 - **Privacy Controls**: User control over what data is auto-saved (conversations, feedback, statistics)
@@ -1352,16 +1406,44 @@ See [UX_IMPROVEMENTS_SUMMARY.md](UX_IMPROVEMENTS_SUMMARY.md) for detailed UX imp
 
 See [SECURITY_FEATURES.md](SECURITY_FEATURES.md) for detailed security implementation.
 
-#### Audit Trail & Logging Commands
-- **Audit Summary**: View total events, critical incidents, and event breakdown
-- **Recent Events**: See the 20 most recent audit events
-- **Security Incidents**: View all CRITICAL security events (customizable time window)
-- **Export Report**: Export complete audit trail to JSON for compliance/analysis
+#### Audit Trail & Logging
+Comprehensive audit logging for compliance, security monitoring, and forensic analysis:
 
-**Storage**: `audit_logs/` directory with:
-- `security_events.jsonl` - Prompt injections, data leakage, rate limits, file validation
-- `user_actions.jsonl` - Model changes, prompt changes, conversation saves
+**Features:**
+- **Security Events**: Logs all detection events (prompt injections, sensitive data, rate limits, file validation)
+- **User Actions**: Tracks all user actions (model changes, system prompt changes, conversation saves, KB documents added)
+- **Timestamps**: All events ISO 8601 timestamped for full accountability
+- **Severity Levels**: Events categorized as INFO, WARNING, CRITICAL, or ERROR
+- **Searchable**: Filter events by type, severity, or time range
+- **Exportable**: Export full audit trail to JSON for compliance reviews
+
+**Storage**: `audit_logs/` directory with JSONL (JSON Lines) format:
+- `security_events.jsonl` - Prompt injections, sensitive data detections, rate limit violations, file validation failures
+- `user_actions.jsonl` - Model changes, system prompt changes, conversation saves, KB document additions
 - `audit_summary.json` - Statistics and metadata
+
+**Commands:**
+- `audit` - Open audit trail viewer with options for:
+  - View audit summary (total events, critical incidents, event breakdown)
+  - View recent events (last 20 events with full details)
+  - View security incidents (24-hour or 30-day windows)
+  - Export complete audit report to JSON
+
+**Example Audit Event:**
+```json
+{
+  "timestamp": "2025-12-29T12:29:23.121849",
+  "event_type": "SENSITIVE_DATA_DETECTED",
+  "severity": "WARNING",
+  "description": "Sensitive data detected in LLM response (1 types)",
+  "details": {
+    "data_types": ["email"],
+    "type_count": 1,
+    "total_matches": 1
+  },
+  "user_input_preview": "my email is shawn.wall@accenture.com"
+}
+```
 
 ## Contributing
 

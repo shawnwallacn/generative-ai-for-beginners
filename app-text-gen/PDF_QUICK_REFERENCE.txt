@@ -1,0 +1,102 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                   PDF PARSING ISSUE - QUICK REFERENCE                       ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+PROBLEM
+═══════════════════════════════════════════════════════════════════════════════
+Adding 6502-SY6500.pdf to KB showed: "No content to index"
+
+
+ROOT CAUSE
+═══════════════════════════════════════════════════════════════════════════════
+The PDF is SCANNED (all 37 pages are images)
+pdfplumber cannot extract text from scanned PDFs
+OCR (Optical Character Recognition) is required
+
+
+VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+6502-SY6500.pdf (Scanned - Doesn't Work)
+  ├─ Size: 2.49 MB
+  ├─ Pages: 37
+  ├─ Extractable text: 0 characters
+  └─ Status: ❌ SCANNED DOCUMENT (OCR needed)
+
+python-cheatsheet.pdf (Text-Based - Works!)
+  ├─ Size: 332 KB
+  ├─ Extractable text: 14,367 characters
+  └─ Status: ✅ WORKS PERFECTLY
+
+python3-cheatsheet.pdf (Text-Based - Works!)
+  ├─ Size: 249 KB
+  └─ Status: ✅ SHOULD WORK
+
+
+SOLUTION
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ IMMEDIATE: Use python-cheatsheet.pdf to test chunking
+   
+   In app:
+   > kb
+   > 2 (Add document)
+   > File: python-cheatsheet.pdf
+   > Strategy: 5 (Semantic)
+
+✅ ALTERNATIVE: Find text-based 6502 documentation PDF
+   
+   Search: "6502 CPU datasheet PDF text" or similar
+
+⚠️  ADVANCED: Convert scanned PDF to text using OCR
+   
+   Option 1: Azure Computer Vision (you have credits!)
+   Option 2: pytesseract + Tesseract (free, local)
+   Option 3: Online tool (ILovePDF.com, OCR.space, etc.)
+
+
+KEY FACTS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Advanced chunking works perfectly
+   └─ Tested with python-cheatsheet.pdf: ALL STRATEGIES WORK
+
+❌ Scanned PDFs not supported (by design)
+   └─ Would need OCR implementation
+   └─ Not a bug - it's a feature limitation
+
+✅ Better error messages now in place
+   └─ Explains when PDF is scanned
+   └─ Suggests OCR solutions
+
+
+HOW TO TEST
+═══════════════════════════════════════════════════════════════════════════════
+
+Diagnostic tool (shows detailed PDF analysis):
+  $ python test_pdf_diagnostic.py python-cheatsheet.pdf
+
+Chunking test (proves all strategies work):
+  $ python test_pdf_chunking.py
+
+Full KB test (end-to-end):
+  $ python src/app.py
+  > kb
+  > 2
+  > python-cheatsheet.pdf
+  > [choose strategy]
+
+
+RECOMMENDATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Use working PDFs now → Ready for Phase 2 (Cosmos DB)
+
+Your advanced chunking implementation is excellent! ✅
+
+
+═══════════════════════════════════════════════════════════════════════════════
+

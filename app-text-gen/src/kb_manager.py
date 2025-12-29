@@ -25,10 +25,19 @@ KB_DOCUMENTS_DIR = "documents"
 class DocumentChunker:
     """Handles document chunking strategies"""
     
+    # Initialize NLTK punkt tokenizer
+    try:
+        import nltk
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        import nltk
+        nltk.download('punkt', quiet=True)
+    
     @staticmethod
     def chunk_by_paragraphs(text: str, overlap: int = 100) -> List[Dict]:
         """
         Chunk text by paragraphs with overlap
+        Best for: Long-form content, essays, articles
         
         Args:
             text: The text to chunk
@@ -50,7 +59,8 @@ class DocumentChunker:
             if current_chunk and len(current_chunk) + len(para) > 1000:
                 chunks.append({
                     "text": current_chunk.strip(),
-                    "word_count": len(current_chunk.split())
+                    "word_count": len(current_chunk.split()),
+                    "strategy": "paragraphs"
                 })
                 # Add overlap
                 current_chunk = current_chunk[-overlap:] + "\n\n" + para
@@ -61,7 +71,8 @@ class DocumentChunker:
         if current_chunk.strip():
             chunks.append({
                 "text": current_chunk.strip(),
-                "word_count": len(current_chunk.split())
+                "word_count": len(current_chunk.split()),
+                "strategy": "paragraphs"
             })
         
         return chunks
@@ -70,6 +81,7 @@ class DocumentChunker:
     def chunk_by_sentences(text: str, sentence_count: int = 5, overlap: int = 1) -> List[Dict]:
         """
         Chunk text by sentence groups
+        Best for: Technical documentation, structured content
         
         Args:
             text: The text to chunk
@@ -79,8 +91,14 @@ class DocumentChunker:
         Returns:
             List of chunk dicts with text and metadata
         """
-        # Simple sentence splitting (handles ., !, ?)
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        # Use NLTK for more accurate sentence splitting
+        try:
+            import nltk
+            sentences = nltk.sent_tokenize(text)
+        except:
+            # Fallback to simple regex if NLTK fails
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+        
         sentences = [s.strip() for s in sentences if s.strip()]
         
         chunks = []
@@ -90,7 +108,9 @@ class DocumentChunker:
                 chunk_text = " ".join(chunk_sentences)
                 chunks.append({
                     "text": chunk_text,
-                    "word_count": len(chunk_text.split())
+                    "word_count": len(chunk_text.split()),
+                    "strategy": "sentences",
+                    "sentence_count": len(chunk_sentences)
                 })
         
         return chunks
@@ -99,6 +119,7 @@ class DocumentChunker:
     def chunk_by_size(text: str, chunk_size: int = 500, overlap: int = 50) -> List[Dict]:
         """
         Chunk text by character size with overlap
+        Best for: Uniform processing, fixed-size requirements
         
         Args:
             text: The text to chunk
@@ -114,8 +135,98 @@ class DocumentChunker:
             if chunk_text.strip():
                 chunks.append({
                     "text": chunk_text.strip(),
-                    "word_count": len(chunk_text.split())
+                    "word_count": len(chunk_text.split()),
+                    "strategy": "size"
                 })
+        
+        return chunks
+    
+    @staticmethod
+    def chunk_by_sliding_window(text: str, window_size: int = 400, step: int = 200, overlap_ratio: float = 0.25) -> List[Dict]:
+        """
+        Chunk text using sliding window with configurable overlap
+        Best for: Continuous text, preserving context across chunks
+        
+        Maintains context by overlapping chunks - good for preserving
+        information that spans chunk boundaries.
+        
+        Args:
+            text: The text to chunk
+            window_size: Size of each window in characters
+            step: Characters to move between windows (smaller = more overlap)
+            overlap_ratio: Ratio of overlap (ignored if step is provided)
+        
+        Returns:
+            List of chunk dicts with text and metadata
+        """
+        chunks = []
+        text_length = len(text)
+        overlap_chars = int(window_size * overlap_ratio)
+        
+        for i in range(0, text_length, step):
+            chunk_text = text[i:i + window_size]
+            if chunk_text.strip():
+                chunks.append({
+                    "text": chunk_text.strip(),
+                    "word_count": len(chunk_text.split()),
+                    "strategy": "sliding_window",
+                    "window_start": i,
+                    "window_end": min(i + window_size, text_length)
+                })
+        
+        return chunks
+    
+    @staticmethod
+    def chunk_by_semantic(text: str, max_chunk_size: int = 600) -> List[Dict]:
+        """
+        Chunk text by semantic boundaries (sentences grouped by topic similarity)
+        Best for: Mixed-topic documents, diverse content
+        
+        This strategy groups sentences that are semantically similar,
+        attempting to keep related concepts together.
+        
+        Args:
+            text: The text to chunk
+            max_chunk_size: Maximum characters per chunk
+        
+        Returns:
+            List of chunk dicts with text and metadata
+        """
+        try:
+            import nltk
+            sentences = nltk.sent_tokenize(text)
+        except:
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        sentences = [s.strip() for s in sentences if s.strip()]
+        chunks = []
+        current_chunk = ""
+        
+        for sentence in sentences:
+            # Add sentence to current chunk if it doesn't exceed max size
+            test_chunk = current_chunk + " " + sentence if current_chunk else sentence
+            
+            if len(test_chunk) <= max_chunk_size:
+                current_chunk = test_chunk
+            else:
+                # Save current chunk if it has content
+                if current_chunk.strip():
+                    chunks.append({
+                        "text": current_chunk.strip(),
+                        "word_count": len(current_chunk.split()),
+                        "strategy": "semantic",
+                        "sentence_count": len(current_chunk.split('.'))
+                    })
+                current_chunk = sentence
+        
+        # Add final chunk
+        if current_chunk.strip():
+            chunks.append({
+                "text": current_chunk.strip(),
+                "word_count": len(current_chunk.split()),
+                "strategy": "semantic",
+                "sentence_count": len(current_chunk.split('.'))
+            })
         
         return chunks
 
@@ -148,15 +259,50 @@ class DocumentParser:
     
     @staticmethod
     def parse_pdf_file(filepath: str) -> str:
-        """Parse a PDF file (basic support without external libraries)"""
+        """Parse a PDF file using pdfplumber"""
         try:
-            # Try using pdfplumber if available, otherwise return placeholder
             try:
                 import pdfplumber
                 text = ""
+                page_count = 0
+                empty_pages = 0
+                
                 with pdfplumber.open(filepath) as pdf:
-                    for page in pdf.pages:
-                        text += page.extract_text() + "\n"
+                    page_count = len(pdf.pages)
+                    for i, page in enumerate(pdf.pages):
+                        try:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text += page_text + "\n"
+                            else:
+                                empty_pages += 1
+                                # Try alternative extraction method
+                                try:
+                                    # Try extracting from table if available
+                                    tables = page.extract_tables()
+                                    if tables:
+                                        for table in tables:
+                                            for row in table:
+                                                text += " ".join([str(cell) if cell else "" for cell in row]) + "\n"
+                                except:
+                                    pass
+                        except Exception as e:
+                            print(f"  Warning: Could not extract page {i+1}: {e}")
+                
+                if not text.strip():
+                    print(f"[WARNING] PDF parsed but no text extracted")
+                    print(f"  Pages: {page_count} | Empty: {empty_pages}")
+                    if empty_pages == page_count:
+                        print(f"  [INFO] PDF is likely a SCANNED DOCUMENT (images only)")
+                        print(f"  [INFO] OCR (Optical Character Recognition) needed to extract text")
+                        print(f"  [INFO] Try: pytesseract or Tesseract OCR")
+                    else:
+                        print(f"  [INFO] Some pages have no extractable text")
+                    return ""
+                
+                if empty_pages > 0 and empty_pages < page_count:
+                    print(f"[INFO] Extracted text from {page_count - empty_pages}/{page_count} pages")
+                
                 return text
             except ImportError:
                 print("Warning: pdfplumber not installed. PDF support limited.")
@@ -164,6 +310,8 @@ class DocumentParser:
                 return ""
         except Exception as e:
             print(f"Error parsing PDF file: {e}")
+            import traceback
+            traceback.print_exc()
             return ""
     
     @staticmethod
@@ -325,7 +473,12 @@ class KnowledgeBase:
             filepath: Path to the document file
             collection_name: Collection to add document to
             doc_title: Optional custom title for the document
-            chunking_strategy: 'paragraphs', 'sentences', or 'size'
+            chunking_strategy: Chunking strategy to use:
+                - 'paragraphs': Groups paragraphs with overlap
+                - 'sentences': Groups sentences (NLTK-based)
+                - 'size': Fixed-size chunks with overlap
+                - 'sliding_window': 400 char window with 200 char step
+                - 'semantic': Groups sentences by semantic similarity
         
         Returns:
             True if successful, False otherwise
@@ -368,11 +521,24 @@ class KnowledgeBase:
             chunks = self.chunker.chunk_by_sentences(content)
         elif chunking_strategy == "size":
             chunks = self.chunker.chunk_by_size(content)
+        elif chunking_strategy == "sliding_window":
+            chunks = self.chunker.chunk_by_sliding_window(content)
+        elif chunking_strategy == "semantic":
+            chunks = self.chunker.chunk_by_semantic(content)
         else:
             chunks = self.chunker.chunk_by_paragraphs(content)
         
         if not chunks:
-            print("No content to index")
+            print("[ERROR] No content to index")
+            print(f"  Content length: {len(content)} characters")
+            if len(content) == 0:
+                print("  Possible causes:")
+                print("    - File is empty")
+                print("    - PDF extraction failed (scanned image?)")
+                print("    - File encoding issue")
+            elif len(content) < 100:
+                print(f"  Warning: Content is very short ({len(content)} chars)")
+                print("  May not produce valid chunks")
             return False
         
         # Create document entry
@@ -529,13 +695,38 @@ def interactive_kb_menu(kb: KnowledgeBase):
                     filepath = input("File path: ").strip()
                     title = input("Document title (optional): ").strip()
                     
-                    print("\nChunking strategies:")
+                    print("\n" + "="*50)
+                    print("CHUNKING STRATEGIES")
+                    print("="*50)
                     print("1. Paragraphs (default)")
+                    print("   - Groups paragraphs with overlap")
+                    print("   - Best for: Essays, long-form content")
+                    print()
                     print("2. Sentences")
-                    print("3. Size-based")
+                    print("   - Groups 5 sentences per chunk")
+                    print("   - Best for: Technical documentation")
+                    print()
+                    print("3. Size-based (Sliding Window)")
+                    print("   - Fixed 500 char chunks with overlap")
+                    print("   - Best for: Continuous text, books")
+                    print()
+                    print("4. Sliding Window (Advanced)")
+                    print("   - 400 char window, 200 char step")
+                    print("   - Best for: Preserving context")
+                    print()
+                    print("5. Semantic (Advanced)")
+                    print("   - Groups sentences by topic")
+                    print("   - Best for: Mixed-topic documents")
+                    print()
                     
-                    strategy_choice = input("Select strategy (1-3): ").strip()
-                    strategies = {"1": "paragraphs", "2": "sentences", "3": "size"}
+                    strategy_choice = input("Select strategy (1-5, default=1): ").strip()
+                    strategies = {
+                        "1": "paragraphs", 
+                        "2": "sentences", 
+                        "3": "size",
+                        "4": "sliding_window",
+                        "5": "semantic"
+                    }
                     strategy = strategies.get(strategy_choice, "paragraphs")
                     
                     kb.add_document(filepath, collection['name'], title, strategy)
