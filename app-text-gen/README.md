@@ -275,6 +275,7 @@ Default model: gpt-4o-mini
 
 #### Program Control
 - **Help**: Type `help` to display all available commands
+- **Privacy**: Type `privacy` to view data collection and privacy settings
 - **Exit**: Type `exit` or `quit` to end the program
 - **Interrupt**: Press `Ctrl+C` to stop the app
 
@@ -1272,6 +1273,32 @@ To add new functions, see [FUNCTION_CALLING_GUIDE.md](FUNCTION_CALLING_GUIDE.md)
 - Implementing function logic
 - Integrating with the app
 - Testing and debugging
+
+## User Experience (UX) Improvements
+
+Following Lesson 12 principles, the app now features improved UX focused on **Useful, Reliable, Accessible, and Pleasant** experiences.
+
+### Trust & Transparency
+- **Clear Error Messages**: Instead of generic errors, users get helpful suggestions and guidance
+- **Data Privacy**: Type `privacy` to see exactly what data is collected and where it's stored
+- **Privacy First**: All data is stored locally on your computer - nothing sent to external services except API requests
+
+### Helpful Guidance
+- **Smart Error Handling**: When something goes wrong, get friendly explanations and next steps
+- **Helpful Tips**: Discover features you might not know about
+- **Command Suggestions**: Can't remember a command? Get suggestions for what you might want to do
+
+### Pleasant Experience
+- **Friendly Messaging**: Error messages and prompts are welcoming and encouraging
+- **Clear Explanations**: Features are explained in simple terms, not tech jargon
+- **Data Control**: See exactly what's being saved and why
+
+### Accessibility
+- **Multiple Ways to Learn**: Use `help` to see all commands, or let the app guide you
+- **Clear Command Structure**: Commands are organized logically and easy to discover
+- **Consistent Design**: Similar commands work the same way throughout the app
+
+See [UX_IMPROVEMENTS_SUMMARY.md](UX_IMPROVEMENTS_SUMMARY.md) for detailed UX improvements made in Lesson 12.
 
 ## Features
 

@@ -31,6 +31,11 @@ from rag import RAGEngine, interactive_rag_settings
 from kb_manager import KnowledgeBase, interactive_kb_menu
 from image_generator import ImageGenerator, interactive_image_generator
 from function_calling import FunctionDefinitions, FunctionExecutor
+from ux_improvements import (
+    ErrorMessages, ResponseTransparency, HelpfulTips, 
+    DataTransparency, ConversationStarters
+)
+from privacy_settings import PrivacySettings
 
 load_dotenv()
 
@@ -83,6 +88,13 @@ except Exception as e:
     print(f"Warning: Function calling not available: {e}")
     function_executor = None
     function_calling_available = False
+
+# Initialize Privacy Settings
+try:
+    privacy_settings = PrivacySettings()
+except Exception as e:
+    print(f"Warning: Privacy settings not available: {e}")
+    privacy_settings = None
 
 # Conversation history storage
 conversation_history = []
@@ -244,7 +256,7 @@ def generate_text_streaming(prompt, model_name):
         
         if function_was_called and fc_response:
             # Function was called and LLM provided response
-            print(f"\n{fc_response}\n")
+            # (Response already streamed to output, no need to print again)
             last_response = fc_response
             
             # Add to conversation history
@@ -254,7 +266,10 @@ def generate_text_streaming(prompt, model_name):
             })
             
             # Record usage
-            record_request(model=model_name, tokens=len(fc_response.split()), request_type="function_call")
+            prompt_tokens = len(last_prompt.split()) if last_prompt else 0
+            completion_tokens = len(fc_response.split())
+            record_request(model=model_name, prompt_tokens=prompt_tokens, 
+                         completion_tokens=completion_tokens, system_prompt=augmented_system_prompt)
             
             return
         
@@ -310,6 +325,7 @@ def generate_text_streaming(prompt, model_name):
     except Exception as e:
         # Fallback to non-streaming if streaming fails
         print(f"(Streaming unavailable, using standard response)\n")
+        print(f"[DEBUG] Error in generate_text_streaming: {type(e).__name__}: {str(e)}")
         params = model_params.get_all_parameters()
         response = client.chat.completions.create(
             model=model_name,
@@ -450,6 +466,14 @@ def save_current_conversation():
     """Save the current conversation to a file"""
     global current_model
     
+    # Check privacy settings
+    if privacy_settings and not privacy_settings.settings['auto_save_conversations']:
+        print("\n⚠️  Auto-save conversations is currently DISABLED in privacy settings.")
+        confirm = input("Override and save anyway? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("Save cancelled.")
+            return
+    
     if not conversation_history:
         print("No conversation to save.")
         return
@@ -463,7 +487,7 @@ def save_current_conversation():
     
     try:
         saved_file = save_conversation(conversation_history, system_prompt, current_model, filename)
-        print(f"Conversation saved to: {saved_file}")
+        print(f"✓ Conversation saved to: {saved_file}")
     except Exception as e:
         print(f"Error saving conversation: {e}")
 
@@ -721,6 +745,14 @@ def rate_last_response():
     """Rate the last response"""
     global last_response, last_prompt
     
+    # Check privacy settings
+    if privacy_settings and not privacy_settings.settings['auto_save_feedback']:
+        print("\n⚠️  Auto-save feedback is currently DISABLED in privacy settings.")
+        confirm = input("Override and save feedback anyway? (yes/no): ").strip().lower()
+        if confirm != "yes":
+            print("Feedback cancelled - not saved.")
+            return
+    
     if last_response is None:
         print("\nNo response to rate. Generate a response first.")
         return
@@ -734,7 +766,7 @@ def rate_last_response():
     
     try:
         save_feedback(last_prompt, last_response, rating, flag, notes)
-        print(f"\nFeedback saved! Thank you for your rating.")
+        print(f"\n✓ Feedback saved! Thank you for your rating.")
     except Exception as e:
         print(f"Error saving feedback: {e}")
 
@@ -930,6 +962,13 @@ def display_help():
     print("="*70)
     
     commands = {
+        "Profile Management": [
+            ("profile", "Switch to a different user profile"),
+            ("new-profile", "Create a new user profile"),
+            ("save-profile", "Save current profile settings"),
+            ("profiles", "List all available profiles"),
+            ("profile-info", "View current profile details"),
+        ],
         "Chat & Conversation": [
             ("model", "Switch to a different AI model"),
             ("system", "Set a custom system prompt/instructions"),
@@ -983,6 +1022,7 @@ def display_help():
         ],
         "Program Control": [
             ("help", "Display this help message"),
+            ("privacy", "View privacy and data collection settings"),
             ("exit / quit", "End the program"),
         ],
     }
@@ -1045,6 +1085,7 @@ def main():
     print("  - Type 'load' to load a saved conversation")
     print("  - Type 'clear' to clear conversation history")
     print("  - Type 'help' to see all available commands")
+    print("  - Type 'privacy' to review data collection settings")
     print("  - Type 'exit' or 'quit' to end the program\n")
     
     # Get available models from config
@@ -1248,7 +1289,7 @@ def main():
                 if function_executor:
                     summaries = function_executor.list_summaries()
                     if not summaries:
-                        print("\nNo summaries extracted yet.")
+                        print(ErrorMessages.no_summaries_created())
                     else:
                         print(f"\n[Function Calling] Extracted Summaries ({len(summaries)} total):")
                         print("=" * 70)
@@ -1264,9 +1305,16 @@ def main():
                     print("Function calling not available")
                 continue
             
+            if user_input.lower() == 'privacy':
+                if privacy_settings:
+                    privacy_settings.interactive_menu()
+                else:
+                    print(DataTransparency.data_collection_summary())
+                continue
+            
             # Validate input
             if not user_input:
-                print("Please enter a valid prompt.")
+                print(ErrorMessages.empty_input())
                 continue
             
             # Generate text
