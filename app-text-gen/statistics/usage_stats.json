@@ -1,8 +1,8 @@
 {
   "created_at": "2025-12-17T11:40:41.333470",
-  "total_requests": 51,
-  "total_tokens_used": 12755,
-  "total_cost_estimate": 0.42587600000000003,
+  "total_requests": 52,
+  "total_tokens_used": 13075,
+  "total_cost_estimate": 0.438686,
   "by_model": {
     "gpt-4o-mini": {
       "requests": 21,
@@ -10,9 +10,9 @@
       "cost": 0.0020060000000000004
     },
     "gpt-4.1": {
-      "requests": 30,
-      "tokens": 8118,
-      "cost": 0.4238700000000001
+      "requests": 31,
+      "tokens": 8438,
+      "cost": 0.43668000000000007
     }
   },
   "by_date": {
@@ -30,6 +30,11 @@
       "requests": 25,
       "tokens": 5177,
       "cost": 0.10811000000000003
+    },
+    "2025-12-30": {
+      "requests": 1,
+      "tokens": 320,
+      "cost": 0.01281
     }
   },
   "requests": [
@@ -440,6 +445,14 @@
       "completion_tokens": 26,
       "total_tokens": 235,
       "estimated_cost": 4.7e-05
+    },
+    {
+      "timestamp": "2025-12-30T08:54:36.096133",
+      "model": "gpt-4.1",
+      "prompt_tokens": 213,
+      "completion_tokens": 107,
+      "total_tokens": 320,
+      "estimated_cost": 0.01281
     }
   ]
 }

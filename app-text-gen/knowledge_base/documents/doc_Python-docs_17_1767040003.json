@@ -512,5 +512,6 @@
   "chunk_count": 72,
   "total_words": 5738,
   "added_at": "2025-12-29T13:26:43.171316",
-  "indexed": false
+  "indexed": true,
+  "cosmos_indexed_at": "2025-12-30T09:15:08.205288"
 }

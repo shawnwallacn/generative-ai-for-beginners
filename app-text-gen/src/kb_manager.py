@@ -12,6 +12,15 @@ from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 from security import InputValidator
 
+# Try to import Cosmos DB storage (optional for dual-source support)
+try:
+    from cosmos_storage import CosmosDBStorage, DualSourceSearch
+    COSMOS_AVAILABLE = True
+except ImportError:
+    COSMOS_AVAILABLE = False
+    CosmosDBStorage = None
+    DualSourceSearch = None
+
 # Import audit logger (will be set by app.py)
 audit_logger = None
 
@@ -331,14 +340,39 @@ class DocumentParser:
 
 
 class KnowledgeBase:
-    """Manages knowledge base documents and indexing"""
+    """Manages knowledge base documents and indexing with dual-source support (local + Cosmos DB)"""
     
-    def __init__(self):
-        """Initialize knowledge base"""
+    def __init__(self, use_cosmos_db: bool = True):
+        """
+        Initialize knowledge base
+        
+        Args:
+            use_cosmos_db: Whether to enable Cosmos DB storage for dual-source indexing
+        """
         self._ensure_directories()
         self.index = self._load_index()
         self.chunker = DocumentChunker()
         self.parser = DocumentParser()
+        
+        # Initialize Cosmos DB if available and requested
+        self.cosmos_storage = None
+        self.dual_search = None
+        self.use_cosmos_db = use_cosmos_db and COSMOS_AVAILABLE
+        
+        if self.use_cosmos_db:
+            try:
+                self.cosmos_storage = CosmosDBStorage(
+                    endpoint=os.getenv("COSMOS_DB_ENDPOINT"),
+                    key=os.getenv("COSMOS_DB_KEY"),
+                    database_name=os.getenv("COSMOS_DB_DATABASE_NAME", "genai-kb"),
+                    container_name=os.getenv("COSMOS_DB_CONTAINER_NAME", "documents")
+                )
+                print("[+] Cosmos DB storage initialized for dual-source indexing")
+            except Exception as e:
+                print(f"[WARNING] Could not initialize Cosmos DB storage: {e}")
+                print("          KB will operate in local-only mode")
+                self.cosmos_storage = None
+                self.use_cosmos_db = False
     
     def _ensure_directories(self):
         """Create KB directory structure if needed"""
@@ -464,6 +498,20 @@ class KnowledgeBase:
         print(f"[+] Collection '{collection_name}' created")
         return True
     
+    def list_collections(self) -> List[Dict]:
+        """
+        List all collections in the knowledge base
+        
+        Returns:
+            List of collection dictionaries with name, description, and document count
+        """
+        collections = []
+        for collection_name in self.index.get('collections', []):
+            collection_file = self._load_collection_file(collection_name)
+            if collection_file:
+                collections.append(collection_file)
+        return collections
+    
     def add_document(self, filepath: str, collection_name: str, 
                     doc_title: str = "", chunking_strategy: str = "paragraphs") -> bool:
         """
@@ -588,7 +636,237 @@ class KnowledgeBase:
         
         return True
     
-    def list_collections(self) -> List[Dict]:
+    def index_document_to_cosmos(self, doc_id: str, embeddings: List[List[float]]) -> bool:
+        """
+        Index a document to Cosmos DB with embeddings (for dual-source storage)
+        
+        Args:
+            doc_id: Document ID to index
+            embeddings: List of embedding vectors for each chunk
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.use_cosmos_db or not self.cosmos_storage:
+            return False
+        
+        try:
+            # Load document from local storage
+            document = self._load_document_file(doc_id)
+            if not document:
+                print(f"[ERROR] Document not found: {doc_id}")
+                return False
+            
+            chunks = document.get('chunks', [])
+            if len(chunks) != len(embeddings):
+                print(f"[ERROR] Chunk count ({len(chunks)}) != Embedding count ({len(embeddings)})")
+                return False
+            
+            # Store in Cosmos DB with embeddings
+            self.cosmos_storage.store_document(
+                doc_id=doc_id,
+                collection_id=document['collection'],
+                title=document['title'],
+                content=self._reconstruct_content(chunks),
+                chunks=chunks,
+                embeddings=embeddings,
+                metadata={
+                    'filepath': document.get('filepath', ''),
+                    'added_at': document.get('added_at', ''),
+                    'chunking_strategy': chunks[0].get('strategy', 'unknown') if chunks else 'unknown'
+                }
+            )
+            
+            # Update local document to mark as indexed
+            document['indexed'] = True
+            document['cosmos_indexed_at'] = datetime.now().isoformat()
+            self._save_document_file(document)
+            
+            print(f"[+] Document indexed to Cosmos DB: {doc_id}")
+            
+            # Log to audit trail
+            if audit_logger:
+                audit_logger.log_user_action('KB_DOCUMENT_COSMOS_INDEXED', {
+                    'doc_id': doc_id,
+                    'title': document['title'],
+                    'collection': document['collection'],
+                    'chunk_count': len(chunks),
+                    'embedding_count': len(embeddings)
+                })
+            
+            return True
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to index to Cosmos DB: {e}")
+            return False
+    
+    def _reconstruct_content(self, chunks: List[Dict]) -> str:
+        """Reconstruct full content from chunks"""
+        return "\n\n".join(chunk['text'] for chunk in chunks)
+    
+    def bulk_index_kb_to_cosmos(self) -> Dict:
+        """
+        Bulk index all KB documents to Cosmos DB with embeddings
+        
+        This method iterates through all KB documents and generates embeddings
+        for them, then stores them in Cosmos DB for dual-source search.
+        
+        Returns:
+            Dictionary with indexing statistics
+        """
+        if not self.cosmos_storage:
+            print("[ERROR] Cosmos DB not available")
+            return {}
+        
+        try:
+            from embedding_generator import EmbeddingGenerator
+        except ImportError:
+            print("[ERROR] Embedding generator module not found")
+            return {}
+        
+        gen = EmbeddingGenerator()
+        if not gen.is_available():
+            print("[ERROR] Embedding generator not available (check Azure OpenAI credentials)")
+            return {}
+        
+        stats = {
+            "total_docs": 0,
+            "indexed": 0,
+            "failed": 0,
+            "total_chunks": 0
+        }
+        
+        # Get all documents
+        all_docs = self.list_documents()
+        
+        if not all_docs:
+            print("[*] No documents found to index")
+            return stats
+        
+        print(f"\n[*] Indexing {len(all_docs)} documents to Cosmos DB...")
+        print("This may take a few moments...\n")
+        
+        for i, doc in enumerate(all_docs, 1):
+            doc_id = doc.get('id', 'unknown')
+            doc_title = doc.get('title', 'Unknown')
+            
+            stats["total_docs"] += 1
+            
+            try:
+                # Get chunk texts
+                chunks = doc.get('chunks', [])
+                if not chunks:
+                    print(f"[{i}/{len(all_docs)}] Skipping '{doc_title}' - no chunks")
+                    continue
+                
+                chunk_texts = [c['text'] for c in chunks]
+                stats["total_chunks"] += len(chunks)
+                
+                print(f"[{i}/{len(all_docs)}] Indexing '{doc_title}' ({len(chunks)} chunks)...", end=" ")
+                
+                # Generate embeddings
+                embeddings = gen.generate_batch_embeddings(chunk_texts)
+                
+                if embeddings and len(embeddings) == len(chunks):
+                    # Index to Cosmos DB
+                    success = self.index_document_to_cosmos(doc_id, embeddings)
+                    if success:
+                        print("[OK]")
+                        stats["indexed"] += 1
+                    else:
+                        print("[FAILED]")
+                        stats["failed"] += 1
+                else:
+                    print("[FAILED - embedding mismatch]")
+                    stats["failed"] += 1
+            
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                stats["failed"] += 1
+        
+        print(f"\n[+] Bulk indexing complete!")
+        print(f"    Total documents: {stats['total_docs']}")
+        print(f"    Successfully indexed: {stats['indexed']}")
+        print(f"    Failed: {stats['failed']}")
+        print(f"    Total chunks indexed: {stats['total_chunks']}")
+        
+        return stats
+    
+    def _reconstruct_content(self, chunks: List[Dict]) -> str:
+        """Reconstruct full content from chunks"""
+        return "\n\n".join(chunk['text'] for chunk in chunks)
+    
+    def search_dual_source(self, query: str, query_embedding: List[float], 
+                          collection_id: Optional[str] = None, top_k: int = 5) -> List[Dict]:
+        """
+        Search across both local and Cosmos DB sources (dual-source search)
+        
+        Args:
+            query: Search query text
+            query_embedding: Embedding vector for the query
+            collection_id: Optional filter by collection
+            top_k: Number of results to return
+        
+        Returns:
+            List of search results from both sources
+        """
+        results = []
+        
+        # Search local storage (conversations/existing embeddings)
+        print(f"  [RAG] Searching local storage...")
+        local_results = self._search_local_embeddings(query_embedding, collection_id, top_k)
+        for result in local_results:
+            result['source'] = 'local_kb'
+        results.extend(local_results)
+        
+        # Search Cosmos DB (KB documents with embeddings)
+        if self.use_cosmos_db and self.cosmos_storage:
+            print(f"  [RAG] Searching Cosmos DB...")
+            cosmos_results = self.cosmos_storage.search_by_embedding(
+                query_embedding=query_embedding,
+                collection_id=collection_id,
+                top_k=top_k,
+                threshold=0.5
+            )
+            for result in cosmos_results:
+                result['source'] = 'cosmos_kb'
+                # Normalize field names for consistency
+                result['relevance'] = result.get('similarity', 0)
+            results.extend(cosmos_results)
+        
+        # Rank and deduplicate
+        results = self._rank_and_merge_results(results)
+        
+        return results[:top_k]
+    
+    def _search_local_embeddings(self, query_embedding: List[float], 
+                                 collection_id: Optional[str], top_k: int) -> List[Dict]:
+        """Search local documents for similar embeddings"""
+        # Placeholder for local embedding search
+        # In a full implementation, this would search against local embeddings
+        return []
+    
+    def _rank_and_merge_results(self, results: List[Dict]) -> List[Dict]:
+        """
+        Rank and deduplicate search results from multiple sources
+        
+        Gives slight preference to Cosmos DB (cloud-stored, professionally indexed)
+        """
+        # Sort by relevance/similarity score
+        for result in results:
+            score = result.get('relevance', result.get('similarity', 0))
+            # Boost Cosmos DB results slightly
+            if result.get('source') == 'cosmos_kb':
+                score *= 1.05
+            result['rank_score'] = score
+        
+        results.sort(key=lambda x: x['rank_score'], reverse=True)
+        
+        # Deduplicate based on text similarity (optional)
+        # For now, just return top results
+        return results
+    
+
         """Get all collections with their metadata"""
         collections = []
         for col_name in self.index.get('collections', []):
@@ -667,9 +945,10 @@ def interactive_kb_menu(kb: KnowledgeBase):
         print("4. List documents")
         print("5. View collection stats")
         print("6. View KB stats")
+        print("7. Bulk index KB to Cosmos DB (with embeddings)")
         print("0. Back to main menu")
         
-        choice = input("\nSelect option (0-6): ").strip()
+        choice = input("\nSelect option (0-7): ").strip()
         
         if choice == "0":
             break
@@ -809,3 +1088,18 @@ def interactive_kb_menu(kb: KnowledgeBase):
             print(f"  Total words: {stats['total_words']}")
             print(f"  Indexed documents: {stats['indexed_documents']}/{stats['document_count']}")
             print(f"  Last updated: {stats['last_updated'] or 'Never'}")
+        elif choice == "7":
+            print("\n" + "="*60)
+            print("BULK INDEX KB TO COSMOS DB")
+            print("="*60)
+            print("\nThis will:")
+            print("  1. Generate embeddings for all KB documents")
+            print("  2. Index them to Azure Cosmos DB")
+            print("  3. Enable enterprise dual-source search")
+            print("\nNote: This requires Azure OpenAI credentials")
+            confirm = input("\nProceed with bulk indexing? (yes/no): ").strip().lower()
+            if confirm == "yes":
+                stats = kb.bulk_index_kb_to_cosmos()
+            else:
+                print("Bulk indexing cancelled.")
+

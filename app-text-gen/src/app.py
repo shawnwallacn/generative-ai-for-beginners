@@ -1041,6 +1041,107 @@ def manage_model_parameters():
         else:
             print("Invalid choice.")
 
+def cosmos_kb_search(knowledge_base):
+    """Search Knowledge Base using Cosmos DB with embeddings (Enterprise RAG)"""
+    try:
+        from embedding_generator import EmbeddingGenerator
+        
+        print("\n" + "="*70)
+        print("ENTERPRISE KB SEARCH - Cosmos DB + Embeddings")
+        print("="*70)
+        print("\nSearching across dual sources:")
+        print("  - Local Knowledge Base (JSONL)")
+        print("  - Azure Cosmos DB (Cloud Vector Database)")
+        print("="*70)
+        
+        query = input("\nEnter your search query: ").strip()
+        if not query:
+            print("Search cancelled.")
+            return
+        
+        # Initialize embedding generator
+        embedding_gen = EmbeddingGenerator()
+        
+        if not embedding_gen.is_available():
+            print("[WARNING] Embedding generator not available.")
+            print("Ensure AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT are set.")
+            return
+        
+        print(f"\n[*] Generating embedding for query...")
+        query_embedding = embedding_gen.generate_embedding(query)
+        
+        if not query_embedding:
+            print("[ERROR] Failed to generate query embedding.")
+            return
+        
+        print(f"[+] Query embedding generated (dimension: {len(query_embedding)})")
+        
+        # Perform dual-source search
+        print(f"\n[*] Searching dual sources...")
+        print("    [1] Searching local KB...")
+        print("    [2] Searching Cosmos DB...")
+        
+        if hasattr(knowledge_base, 'search_dual_source'):
+            results = knowledge_base.search_dual_source(
+                query=query,
+                query_embedding=query_embedding,
+                top_k=5
+            )
+        else:
+            print("[WARNING] Dual-source search not available.")
+            print("Using local KB search only...")
+            results = knowledge_base.search(query, top_k=5) if hasattr(knowledge_base, 'search') else []
+        
+        # Display results
+        if results:
+            print(f"\n[+] Found {len(results)} results from dual sources:\n")
+            print("="*70)
+            
+            for i, result in enumerate(results, 1):
+                source = result.get('source', 'Unknown')
+                similarity = result.get('similarity', 0)
+                doc_title = result.get('title', 'Unknown')
+                chunk_text = result.get('text', 'N/A')[:200]
+                
+                sim_pct = similarity * 100 if isinstance(similarity, float) else similarity
+                
+                print(f"\n{i}. [{source}] Relevance: {sim_pct:.1f}%")
+                print(f"   Document: {doc_title}")
+                print(f"   Collection: {result.get('collection_id', 'Unknown')}")
+                print(f"   Text: {chunk_text}...")
+                if source == 'Cosmos DB':
+                    print(f"   Strategy: {result.get('strategy', 'unknown')}")
+            
+            print("\n" + "="*70)
+            
+            # Show cache statistics if available
+            try:
+                if hasattr(embedding_gen, 'cache') and hasattr(embedding_gen.cache, 'get_stats'):
+                    cache_stats = embedding_gen.cache.get_stats()
+                    if cache_stats:
+                        print(f"\n[*] Embedding Cache Statistics:")
+                        print(f"    Size: {cache_stats['size']} items")
+                        print(f"    Hits: {cache_stats['hits']}")
+                        print(f"    Misses: {cache_stats['misses']}")
+                        print(f"    Hit Rate: {cache_stats['hit_rate']:.1f}%")
+            except Exception as cache_err:
+                # Cache stats not available, continue without them
+                pass
+        else:
+            print("[*] No results found matching your query.")
+            print("\nTips:")
+            print("  - Try different keywords")
+            print("  - Ensure KB documents are indexed to Cosmos DB")
+            print("  - Use 'kb' command to view/manage documents")
+    
+    except ImportError as e:
+        print(f"[ERROR] Import error: {e}")
+        print("Ensure all dependencies are installed: pip install -r requirements.txt")
+    except Exception as e:
+        print(f"[ERROR] Search failed: {e}")
+        import traceback
+        traceback.print_exc()
+
 def display_help():
     """Display all available commands organized by category"""
     print("\n" + "="*70)
@@ -1082,6 +1183,7 @@ def display_help():
             ("index", "Index current conversation with embeddings"),
             ("index-kb", "Index Knowledge Base documents"),
             ("kb-search", "Search Knowledge Base documents"),
+            ("cosmos-search", "Enterprise KB search (Cosmos DB + Embeddings)"),
             ("embedding-stats", "View embedding index statistics"),
         ],
         "Knowledge Base": [
@@ -1156,6 +1258,7 @@ def main():
     print("  - Type 'index' to index current conversation with embeddings")
     print("  - Type 'index-kb' to index Knowledge Base documents")
     print("  - Type 'kb-search' to search Knowledge Base documents")
+    print("  - Type 'cosmos-search' to search with Cosmos DB (Enterprise RAG)")
     print("  - Type 'embedding-stats' to view embedding index statistics")
     print("  - Type 'export' to export a conversation")
     print("  - Type 'analyze' to analyze a conversation")
@@ -1307,6 +1410,13 @@ def main():
                             print("No KB results found for this query")
                 else:
                     print("Error: Embeddings not available")
+                continue
+            
+            if user_input.lower() == 'cosmos-search':
+                if knowledge_base:
+                    cosmos_kb_search(knowledge_base)
+                else:
+                    print("Error: Knowledge Base not available")
                 continue
             
             if user_input.lower() == 'embedding-stats':

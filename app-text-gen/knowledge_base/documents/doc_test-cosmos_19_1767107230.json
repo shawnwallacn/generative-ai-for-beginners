@@ -1,0 +1,25 @@
+{
+  "id": "doc_test-cosmos_19_1767107230",
+  "title": "Cosmos DB Test Document",
+  "filepath": "C:\\Users\\shawn.wall\\mydevrepo\\generative-ai-for-beginners\\app-text-gen\\test_cosmos_doc.txt",
+  "collection": "test-cosmos",
+  "chunks": [
+    {
+      "text": "Cosmos DB is a globally distributed database service. It provides automatic scaling and high availability. Vector search enables semantic similarity matching. Embeddings are numerical representations of text. Partition keys are important for performance.",
+      "word_count": 33,
+      "strategy": "sentences",
+      "sentence_count": 5
+    },
+    {
+      "text": "Partition keys are important for performance.",
+      "word_count": 6,
+      "strategy": "sentences",
+      "sentence_count": 1
+    }
+  ],
+  "chunk_count": 2,
+  "total_words": 39,
+  "added_at": "2025-12-30T08:07:10.992531",
+  "indexed": true,
+  "cosmos_indexed_at": "2025-12-30T09:15:09.075151"
+}
