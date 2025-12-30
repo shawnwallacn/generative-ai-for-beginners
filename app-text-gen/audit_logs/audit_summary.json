@@ -1,7 +1,7 @@
 {
-  "total_events": 37,
+  "total_events": 38,
   "events_by_type": {
-    "MODEL_CHANGED": 2,
+    "MODEL_CHANGED": 3,
     "SYSTEM_PROMPT_CHANGED": 3,
     "PROMPT_INJECTION_WARNED": 1,
     "CONVERSATION_SAVED": 1,
@@ -10,10 +10,10 @@
     "KB_DOCUMENT_COSMOS_INDEXED": 25
   },
   "events_by_severity": {
-    "INFO": 35,
+    "INFO": 36,
     "WARNING": 2
   },
   "first_event": "2025-12-29T11:53:07.566184",
-  "last_event": "2025-12-30T09:15:11.190541",
+  "last_event": "2025-12-30T12:22:09.863731",
   "critical_count": 0
 }

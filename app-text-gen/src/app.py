@@ -1158,6 +1158,7 @@ def display_help():
         ],
         "Chat & Conversation": [
             ("model", "Switch to a different AI model"),
+            ("params", "View and manage model parameters"),
             ("system", "Set a custom system prompt/instructions"),
             ("prompt", "Display the current system prompt"),
             ("history", "View conversation history"),
@@ -1205,8 +1206,7 @@ def display_help():
         ],
         "Data Export & Statistics": [
             ("export", "Export a conversation"),
-            ("stats", "View usage statistics"),
-            ("params", "Manage model parameters"),
+            ("stats", "View usage statistics")
         ],
         "Program Control": [
             ("help", "Display this help message"),
