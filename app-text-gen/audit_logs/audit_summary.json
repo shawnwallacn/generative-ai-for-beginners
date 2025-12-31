@@ -1,8 +1,8 @@
 {
-  "total_events": 38,
+  "total_events": 39,
   "events_by_type": {
     "MODEL_CHANGED": 3,
-    "SYSTEM_PROMPT_CHANGED": 3,
+    "SYSTEM_PROMPT_CHANGED": 4,
     "PROMPT_INJECTION_WARNED": 1,
     "CONVERSATION_SAVED": 1,
     "KB_DOCUMENT_ADDED": 4,
@@ -10,10 +10,10 @@
     "KB_DOCUMENT_COSMOS_INDEXED": 25
   },
   "events_by_severity": {
-    "INFO": 36,
+    "INFO": 37,
     "WARNING": 2
   },
   "first_event": "2025-12-29T11:53:07.566184",
-  "last_event": "2025-12-30T12:22:09.863731",
+  "last_event": "2025-12-30T13:17:36.099820",
   "critical_count": 0
 }

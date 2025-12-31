@@ -67,6 +67,7 @@ app-text-gen/
 - **Dual-Source Search**: Local KB + Azure Cosmos DB
 - **Semantic Embeddings**: Azure OpenAI 1536-dimensional vectors
 - **Intelligent Caching**: Up to 1000 cached embeddings
+- **Agent-Based KB Search**: LLM intelligently chooses between `search_local_kb` (fast) and `search_enterprise_kb` (comprehensive)
 - **Production-Ready**: Error handling, logging, monitoring
 
 ### 💬 AI Capabilities
@@ -101,10 +102,14 @@ app-text-gen/
 ### Main Operations
 ```
 kb              - Manage Knowledge Base documents
-kb-search       - Search local KB (instant)
-cosmos-search   - Enterprise search (dual-source)
+kb-search       - Search local KB (instant, manual command)
+cosmos-search   - Enterprise search (dual-source, manual command)
 index-kb        - Index KB for local search
 semantic-search - Search conversations with embeddings
+
+Chat with Agent Functions (Automatic):
+  - search_local_kb         - Fast local KB search (agent chooses when appropriate)
+  - search_enterprise_kb    - Comprehensive dual-source search (agent chooses when appropriate)
 
 model           - Switch AI model
 system          - Set system prompt
@@ -276,15 +281,17 @@ COSMOS_DB_CONTAINER_NAME=documents
                     ┌─────────────┴──────────────┐
                     │                            │
                     v                            v
-        ┌─────────────────────────┐   ┌──────────────────────┐
-        │   RAG ENGINE            │   │   FUNCTION CALLING   │
-        │   (embedding_generator) │   │   (function_calling) │
-        │                         │   │                      │
-        │ • Generate embeddings   │   │ • Tool definitions   │
-        │ • Azure OpenAI API      │   │ • Execute functions  │
-        │ • Cache (1000 items)    │   │ • Extract snippets   │
-        │ • Batch processing      │   │ • Create summaries   │
-        └─────────────────────────┘   └──────────────────────┘
+        ┌─────────────────────────┐   ┌──────────────────────────┐
+        │   RAG ENGINE            │   │   AGENT FUNCTIONS        │
+        │   (embedding_generator) │   │   (function_calling)     │
+        │                         │   │                          │
+        │ • Generate embeddings   │   │ • search_local_kb        │
+        │ • Azure OpenAI API      │   │ • search_enterprise_kb   │
+        │ • Cache (1000 items)    │   │ • Tool definitions       │
+        │ • Batch processing      │   │ • Execute functions      │
+        │                         │   │ • Extract snippets       │
+        │                         │   │ • Create summaries       │
+        └─────────────────────────┘   └──────────────────────────┘
                     │
         ┌───────────┼───────────┐
         │           │           │
@@ -365,10 +372,12 @@ COSMOS_DB_CONTAINER_NAME=documents
 Run the included test scripts to verify functionality:
 
 ```bash
-python test_cosmos_search_fix.py      # Test RAG search
-python test_bulk_indexing.py          # Test KB indexing
-python test_kb_regression_complete.py # Test KB operations
-python test_phase2c_complete.py       # End-to-end test
+# Agent-Based KB Search
+pytest tests/integration/test_phase_a_kb_tools.py  # Test new KB agent functions
+
+# Additional tests
+pytest tests/                                        # Run all tests
+python scripts/setup/setup_and_test_cosmos.py      # Test Cosmos DB setup
 ```
 
 ## Performance
@@ -407,16 +416,8 @@ For issues or questions:
 2. Review test scripts for usage examples
 3. Check audit logs for error details
 
-## Project Status
-
-✅ **Production Ready**
-- All core features implemented
-- Comprehensive testing (100% pass rate)
-- Full documentation
-- Enterprise-grade architecture
-
 ---
 
-**Last Updated**: December 2024
-**Version**: 1.0.0
-**Status**: Stable
+**Last Updated**: December 2025
+**Version**: 1.1.0
+**Status**: Stable, Production-Ready

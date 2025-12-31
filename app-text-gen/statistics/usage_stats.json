@@ -1,8 +1,8 @@
 {
   "created_at": "2025-12-17T11:40:41.333470",
-  "total_requests": 56,
-  "total_tokens_used": 14733,
-  "total_cost_estimate": 0.515306,
+  "total_requests": 73,
+  "total_tokens_used": 20484,
+  "total_cost_estimate": 0.808376,
   "by_model": {
     "gpt-4o-mini": {
       "requests": 21,
@@ -10,9 +10,9 @@
       "cost": 0.0020060000000000004
     },
     "gpt-4.1": {
-      "requests": 35,
-      "tokens": 10096,
-      "cost": 0.5133000000000001
+      "requests": 52,
+      "tokens": 15847,
+      "cost": 0.80637
     }
   },
   "by_date": {
@@ -32,9 +32,14 @@
       "cost": 0.10811000000000003
     },
     "2025-12-30": {
-      "requests": 5,
-      "tokens": 1978,
-      "cost": 0.08943
+      "requests": 13,
+      "tokens": 4173,
+      "cost": 0.20216999999999996
+    },
+    "2025-12-31": {
+      "requests": 9,
+      "tokens": 3556,
+      "cost": 0.18033
     }
   },
   "requests": [
@@ -485,6 +490,142 @@
       "completion_tokens": 156,
       "total_tokens": 386,
       "estimated_cost": 0.01626
+    },
+    {
+      "timestamp": "2025-12-30T13:13:19.571090",
+      "model": "gpt-4.1",
+      "prompt_tokens": 168,
+      "completion_tokens": 302,
+      "total_tokens": 470,
+      "estimated_cost": 0.02316
+    },
+    {
+      "timestamp": "2025-12-30T13:16:01.063723",
+      "model": "gpt-4.1",
+      "prompt_tokens": 205,
+      "completion_tokens": 239,
+      "total_tokens": 444,
+      "estimated_cost": 0.02049
+    },
+    {
+      "timestamp": "2025-12-30T13:18:12.339148",
+      "model": "gpt-4.1",
+      "prompt_tokens": 8,
+      "completion_tokens": 132,
+      "total_tokens": 140,
+      "estimated_cost": 0.00816
+    },
+    {
+      "timestamp": "2025-12-30T13:20:09.796361",
+      "model": "gpt-4.1",
+      "prompt_tokens": 6,
+      "completion_tokens": 161,
+      "total_tokens": 167,
+      "estimated_cost": 0.00984
+    },
+    {
+      "timestamp": "2025-12-30T13:20:51.609604",
+      "model": "gpt-4.1",
+      "prompt_tokens": 7,
+      "completion_tokens": 131,
+      "total_tokens": 138,
+      "estimated_cost": 0.00807
+    },
+    {
+      "timestamp": "2025-12-30T13:21:15.111992",
+      "model": "gpt-4.1",
+      "prompt_tokens": 5,
+      "completion_tokens": 150,
+      "total_tokens": 155,
+      "estimated_cost": 0.00915
+    },
+    {
+      "timestamp": "2025-12-30T13:29:42.480221",
+      "model": "gpt-4.1",
+      "prompt_tokens": 225,
+      "completion_tokens": 140,
+      "total_tokens": 365,
+      "estimated_cost": 0.01515
+    },
+    {
+      "timestamp": "2025-12-30T13:30:10.193327",
+      "model": "gpt-4.1",
+      "prompt_tokens": 8,
+      "completion_tokens": 308,
+      "total_tokens": 316,
+      "estimated_cost": 0.01872
+    },
+    {
+      "timestamp": "2025-12-31T07:09:24.225839",
+      "model": "gpt-4.1",
+      "prompt_tokens": 6,
+      "completion_tokens": 121,
+      "total_tokens": 127,
+      "estimated_cost": 0.00744
+    },
+    {
+      "timestamp": "2025-12-31T07:10:10.422151",
+      "model": "gpt-4.1",
+      "prompt_tokens": 161,
+      "completion_tokens": 261,
+      "total_tokens": 422,
+      "estimated_cost": 0.02049
+    },
+    {
+      "timestamp": "2025-12-31T07:12:55.730728",
+      "model": "gpt-4.1",
+      "prompt_tokens": 17,
+      "completion_tokens": 261,
+      "total_tokens": 278,
+      "estimated_cost": 0.01617
+    },
+    {
+      "timestamp": "2025-12-31T07:19:24.590840",
+      "model": "gpt-4.1",
+      "prompt_tokens": 254,
+      "completion_tokens": 134,
+      "total_tokens": 388,
+      "estimated_cost": 0.01566
+    },
+    {
+      "timestamp": "2025-12-31T07:20:56.335566",
+      "model": "gpt-4.1",
+      "prompt_tokens": 230,
+      "completion_tokens": 250,
+      "total_tokens": 480,
+      "estimated_cost": 0.0219
+    },
+    {
+      "timestamp": "2025-12-31T07:21:27.028012",
+      "model": "gpt-4.1",
+      "prompt_tokens": 192,
+      "completion_tokens": 315,
+      "total_tokens": 507,
+      "estimated_cost": 0.02466
+    },
+    {
+      "timestamp": "2025-12-31T07:22:04.281779",
+      "model": "gpt-4.1",
+      "prompt_tokens": 224,
+      "completion_tokens": 323,
+      "total_tokens": 547,
+      "estimated_cost": 0.0261
+    },
+    {
+      "timestamp": "2025-12-31T07:27:18.699598",
+      "model": "gpt-4.1",
+      "prompt_tokens": 9,
+      "completion_tokens": 400,
+      "total_tokens": 409,
+      "estimated_cost": 0.02427
+    },
+    {
+      "timestamp": "2025-12-31T07:27:58.424912",
+      "model": "gpt-4.1",
+      "prompt_tokens": 8,
+      "completion_tokens": 390,
+      "total_tokens": 398,
+      "estimated_cost": 0.02364
     }
   ]
 }

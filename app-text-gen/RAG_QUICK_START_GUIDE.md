@@ -393,43 +393,213 @@ Enter your search query: tell me about the 6502
 
 ```
 ╔════════════════════════════════════════════════════════════╗
-║           RAG SYSTEM QUICK REFERENCE                      ║
+║           RAG SYSTEM QUICK REFERENCE                       ║
 ╠════════════════════════════════════════════════════════════╣
 ║ ADDING CONTENT                                             ║
-║ ├─ kb → Option 1 = Create collection                      ║
-║ ├─ kb → Option 2 = Add document                           ║
-║ └─ Select chunking strategy (1-5)                         ║
+║ ├─ kb → Option 1 = Create collection                       ║
+║ ├─ kb → Option 2 = Add document                            ║
+║ └─ Select chunking strategy (1-5)                          ║
 ║                                                            ║
-║ INDEXING (CHOOSE ONE OR BOTH)                             ║
-║ ├─ index-kb = Index for local search (1-2 min)           ║
-║ └─ kb → Option 7 = Index for Cosmos DB (2-3 min)         ║
+║ INDEXING (CHOOSE ONE OR BOTH)                              ║
+║ ├─ index-kb = Index for local search (1-2 min)             ║
+║ └─ kb → Option 7 = Index for Cosmos DB (2-3 min)           ║
 ║                                                            ║
 ║ SEARCHING                                                  ║
-║ ├─ kb-search = Search local KB (instant)                 ║
-║ └─ cosmos-search = Search Cosmos DB (enterprise)          ║
+║ ├─ kb-search = Search local KB (instant)                   ║
+║ └─ cosmos-search = Search Cosmos DB (enterprise)           ║
 ║                                                            ║
 ║ VIEWING                                                    ║
-║ ├─ kb → Option 3 = List collections                       ║
-║ ├─ kb → Option 4 = List documents                         ║
-║ ├─ kb → Option 5 = Collection stats                       ║
-║ └─ kb → Option 6 = KB statistics                          ║
+║ ├─ kb → Option 3 = List collections                        ║
+║ ├─ kb → Option 4 = List documents                          ║
+║ ├─ kb → Option 5 = Collection stats                        ║
+║ └─ kb → Option 6 = KB statistics                           ║
 ╚════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
+## Auto KB Search in Chat
+
+The main chat conversation now uses agent functions to search your Knowledge Base. The agent can intelligently choose between:
+- **`search_local_kb`** - Fast local search (perfect for quick answers)
+- **`search_enterprise_kb`** - Comprehensive dual-source search (local + Cosmos DB)
+
+The system prompt guides the agent to make intelligent choices based on your query context:
+- "Quick summary of..." → Uses `search_local_kb` (fast, instant)
+- "Find ALL information about..." → Uses `search_enterprise_kb` (comprehensive)
+- "Production" queries → Uses `search_enterprise_kb` (enterprise-scale)
+
+### How It Works
+
+When you chat, the agent now:
+1. Sees your query
+2. Analyzes the context (quick vs comprehensive need)
+3. Chooses appropriate search function
+4. Executes the search
+5. Augments response with results
+
+Example conversation flow:
+```
+You: "Tell me about the 6502"
+  ↓
+Agent: "This is a general query, quick answer is fine"
+  ↓
+Agent calls: search_local_kb
+  ↓
+Agent returns: Fast response with local KB results
+
+You: "Find everything about 6502 including all variations"
+  ↓
+Agent: "User wants comprehensive results"
+  ↓
+Agent calls: search_enterprise_kb
+  ↓
+Agent returns: Complete response with local + Cosmos DB results
+```
+
+
+## Multi-Step Planning
+
+**The agent can now execute complex multi-step workflows!**
+
+### What's New
+
+When you ask complex questions that require multiple steps, the agent can now:
+1. Create a **plan** with multiple steps
+2. Execute steps **sequentially**
+3. Pass results between steps
+4. Deliver comprehensive answers
+
+### Example Multi-Step Scenarios
+
+**Example 1: Search + Summarize**
+```
+You: "Find all 6502 information and create a comprehensive summary"
+  ↓
+Agent's Plan:
+  Step 1: search_enterprise_kb for "6502 complete documentation"
+  Step 2: create_summary from step 1 results
+  ↓
+Result: Comprehensive summary based on all findings
+```
+
+**Example 2: Search + Extract Code + Summarize**
+```
+You: "Find 6502 code examples, extract them, and summarize"
+You: "Search local KB for 6502, then search enterprise KB for microprocessors, then create a summary comparing both results"
+  ↓
+Agent's Plan:
+  Step 1: search_local_kb for "6502 assembly code"
+  Step 2: extract_code_snippet from step 1 results
+  Step 3: create_summary combining steps 1 and 2
+  ↓
+Result: Complete analysis with code examples
+```
+
+**Example 3: Multiple Searches + Analysis**
+```
+You: "Compare local KB and Cosmos DB results for microprocessors"
+  ↓
+Agent's Plan:
+  Step 1: search_local_kb for "microprocessor architecture"
+  Step 2: search_enterprise_kb for "microprocessor design"
+  Step 3: create_summary comparing both results
+  ↓
+Result: Comparative analysis from both sources
+```
+
+### How Multi-Step Planning Works
+
+**In Chat:**
+1. You ask a complex question
+2. Agent analyzes if multi-step is needed
+3. Agent creates a PLAN with steps
+4. System executes each step
+5. Results flow from step to step
+6. Agent provides final comprehensive response
+
+**Key Features:**
+- ✅ **Automatic**: No special syntax needed (agent decides)
+- ✅ **Smart**: Avoids unnecessary multi-step when single-step suffices
+- ✅ **Connected**: Step results flow to dependent steps
+- ✅ **Robust**: Failures don't block other steps
+- ✅ **Transparent**: You see the plan being executed
+
+### When Multi-Step Plans Activate
+
+The agent automatically uses multi-step plans when:
+- Query requires analysis of search results + additional processing
+- Multiple function outputs need combining
+- Sequential reasoning is beneficial
+
+Single-step execution remains for:
+- Simple searches
+- Direct questions
+- Quick lookups
+- Phase A agent functions
+
+### Available Multi-Step Functions
+
+- `search_local_kb` - Fast local knowledge base search
+- `search_enterprise_kb` - Dual-source enterprise search
+- `create_summary` - Create structured summaries
+- `extract_code_snippet` - Extract and organize code
+- `get_kb_document` - Retrieve full documents
+- `get_kb_stats` - Get knowledge base statistics
+
+### Example Chat Session
+
+```bash
+Enter your prompt (or command): Search for microprocessors and create a summary
+
+Generating response using gpt-4...
+
+[AGENT PLANNER] LLM proposed a multi-step plan.
+[AGENT PLANNER] Executing valid plan with 2 steps...
+
+[STEP 1] Executing: search_enterprise_kb
+  Status: OK
+  Result: Found 10 relevant documents
+
+[STEP 2] Executing: create_summary
+  Status: OK
+  Result: Summary created with 5 key points
+
+Multi-step plan executed:
+- Step 1: search_enterprise_kb - OK
+- Step 2: create_summary - OK
+
+Final response from LLM:
+"I searched the enterprise knowledge base and found comprehensive 
+information about microprocessors. Here's a structured summary..."
+```
+
+### Important Notes
+
+⚠️ **The agent is smart about planning:**
+- Won't use multi-step if single-step works fine
+- Automatically chooses best approach
+- You don't need to request multi-step explicitly
+- Regular chat works exactly as before
+- Just use the app normally!
+
+---
+
 ## Summary
 
-Your RAG system has:
+Your RAG system now has:
 
 ✅ **Two search engines** (local + cloud)
 ✅ **Five chunking strategies** (paragraphs, sentences, size, window, semantic)
 ✅ **Embeddings** (Azure OpenAI 1536-dimensional)
 ✅ **Intelligent caching** (reduces costs)
 ✅ **Production-ready** (error handling, logging)
+✅ **Agent-based KB search** (intelligent `search_local_kb` and `search_enterprise_kb` functions)
+✅ **Multi-step planning** (complex workflows with result chaining)
+✅ **Multiple search methods** (manual: kb-search, cosmos-search; automatic: chat agent)
 
-**Start with:** Adding documents → Index locally → Try searches → Scale to Cosmos DB
+**Current workflow:** Adding documents → Index locally → Try manual searches → Scale to Cosmos DB → Use in chat via agent functions
+
+**Latest feature (Phase A):** Agent intelligently chooses between fast local and comprehensive enterprise searches in chat conversations!
 
 **Enjoy your enterprise RAG system!** 🚀
-
-

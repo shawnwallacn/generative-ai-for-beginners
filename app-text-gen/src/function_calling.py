@@ -31,7 +31,8 @@ class FunctionDefinitions:
         The LLM uses these to understand what it can do.
         """
         return [
-            FunctionDefinitions.search_knowledge_base(),
+            FunctionDefinitions.search_local_kb(),
+            FunctionDefinitions.search_enterprise_kb(),
             FunctionDefinitions.get_kb_document(),
             FunctionDefinitions.get_kb_stats(),
             FunctionDefinitions.extract_code_snippet(),
@@ -43,14 +44,15 @@ class FunctionDefinitions:
     @staticmethod
     def search_knowledge_base() -> Dict[str, Any]:
         """
-        Function definition for searching the Knowledge Base.
+        DEPRECATED: Use search_local_kb or search_enterprise_kb instead.
         
-        The LLM will call this when the user asks questions about
-        stored documents (e.g., "What's in the 6502 docs?")
+        Legacy function for searching the Knowledge Base.
+        This function is kept for backwards compatibility only.
+        New implementations should use the more specific search functions.
         """
         return {
             "name": "search_knowledge_base",
-            "description": "Search the Knowledge Base for relevant documents based on a query. Use this when the user asks about topics covered in stored documents.",
+            "description": "[DEPRECATED - Use search_local_kb or search_enterprise_kb instead] Search the Knowledge Base for relevant documents. This is a legacy function kept for backwards compatibility.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -61,6 +63,64 @@ class FunctionDefinitions:
                     "collection": {
                         "type": "string",
                         "description": "Optional: Specific collection to search in (e.g., '6502-docs'). Leave empty to search all."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    
+    @staticmethod
+    def search_local_kb() -> Dict[str, Any]:
+        """
+        Function definition for fast local Knowledge Base search.
+        
+        Best for: Quick searches, testing, when you need instant results.
+        """
+        return {
+            "name": "search_local_kb",
+            "description": "Search local Knowledge Base instantly using embeddings. Fast, no API calls, perfect for quick lookups and testing. Returns results from local storage only.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "What you're looking for (e.g., '6502 assembly programming', 'microprocessor architecture')"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "How many results to return (default: 5, max: 10)",
+                        "default": 5
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Optional: Search in a specific collection only (e.g., '6502-docs')"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    
+    @staticmethod
+    def search_enterprise_kb() -> Dict[str, Any]:
+        """
+        Function definition for enterprise-scale Knowledge Base search.
+        
+        Best for: Comprehensive results, production deployments, when you need everything.
+        """
+        return {
+            "name": "search_enterprise_kb",
+            "description": "Search all knowledge sources using AI embeddings. Searches both local storage AND Azure Cosmos DB cloud database. Returns comprehensive results from all available sources. Ideal for production and when you need everything. Shows source for each result (Local or Cloud).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "What you're searching for (e.g., 'complete 6502 documentation', 'all microprocessor info')"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "How many results to return (default: 5, max: 20)",
+                        "default": 5
                     }
                 },
                 "required": ["query"]
@@ -254,21 +314,31 @@ class FunctionExecutor:
         print(f"\n[FUNCTION CALL] Executing: {function_name}")
         print(f"[FUNCTION CALL] Arguments: {json.dumps(arguments, indent=2)}")
         
+        # Filter out internal metadata before passing to functions
+        clean_args = {k: v for k, v in arguments.items() if not k.startswith('_')}
+        
         try:
             if function_name == "search_knowledge_base":
-                return self._search_knowledge_base(**arguments)
+                # Legacy support - route to search_local_kb
+                return self._search_local_kb(**clean_args)
+            
+            elif function_name == "search_local_kb":
+                return self._search_local_kb(**clean_args)
+            
+            elif function_name == "search_enterprise_kb":
+                return self._search_enterprise_kb(**clean_args)
             
             elif function_name == "get_kb_document":
-                return self._get_kb_document(**arguments)
+                return self._get_kb_document(**clean_args)
             
             elif function_name == "get_kb_stats":
-                return self._get_kb_stats(**arguments)
+                return self._get_kb_stats(**clean_args)
             
             elif function_name == "extract_code_snippet":
-                return self._extract_code_snippet(**arguments)
+                return self._extract_code_snippet(**clean_args)
             
             elif function_name == "create_summary":
-                return self._create_summary(**arguments)
+                return self._create_summary(**clean_args)
             
             else:
                 return f"Error: Unknown function '{function_name}'"
@@ -282,36 +352,100 @@ class FunctionExecutor:
     
     def _search_knowledge_base(self, query: str, collection: str = None) -> str:
         """
-        Search the Knowledge Base for relevant documents.
+        Legacy implementation - kept for backwards compatibility.
+        Routes to _search_local_kb
+        """
+        return self._search_local_kb(query=query, top_k=3, collection=collection)
+    
+    def _search_local_kb(self, query: str, top_k: int = 5, collection: str = None) -> str:
+        """
+        Search the local Knowledge Base using embeddings (fast, local).
         
-        This uses the semantic search index to find documents matching the query.
+        This is the primary fast search function - no API calls, instant results.
         """
         if not self.semantic_search_index:
-            return "Error: Semantic search not available"
+            return "Error: Local KB search not available"
         
         try:
             # Search KB documents only
             results = self.semantic_search_index.search_kb_only(
                 query=query,
-                top_k=3,
+                top_k=top_k,
                 similarity_threshold=0.15
             )
             
             if not results:
-                return f"No KB documents found matching '{query}'"
+                return f"No local KB documents found matching '{query}'"
             
-            # Format results for the LLM
-            response = f"Found {len(results)} KB documents matching '{query}':\n\n"
+            # Format results for the LLM with source label
+            response = f"[LOCAL KB SEARCH] Found {len(results)} documents:\n\n"
             
             for i, result in enumerate(results, 1):
-                response += f"{i}. **{result.get('doc_title', 'Unknown')}**\n"
+                response += f"{i}. **{result.get('doc_title', 'Unknown')}** (Local)\n"
                 response += f"   Relevance: {result.get('similarity_score', 0)*100:.1f}%\n"
+                response += f"   Collection: {result.get('collection_id', 'Unknown')}\n"
                 response += f"   Preview: {result.get('text', '')[:200]}...\n\n"
             
             return response
         
         except Exception as e:
-            return f"Error searching KB: {str(e)}"
+            return f"Error searching local KB: {str(e)}"
+    
+    def _search_enterprise_kb(self, query: str, top_k: int = 5) -> str:
+        """
+        Search Knowledge Base using Cosmos DB with embeddings (enterprise).
+        
+        Performs dual-source search across local KB and Azure Cosmos DB.
+        This is the comprehensive search function for production deployments.
+        """
+        if not self.kb_manager:
+            return "Error: KB Manager not available for enterprise search"
+        
+        try:
+            from embedding_generator import EmbeddingGenerator
+            
+            # Initialize embedding generator
+            embedding_gen = EmbeddingGenerator()
+            
+            if not embedding_gen.is_available():
+                return "Error: Embedding generator not available. Ensure AZURE_OPENAI_API_KEY is set."
+            
+            # Generate query embedding
+            query_embedding = embedding_gen.generate_embedding(query)
+            
+            if not query_embedding:
+                return "Error: Failed to generate query embedding."
+            
+            # Perform dual-source search
+            if hasattr(self.kb_manager, 'search_dual_source'):
+                results = self.kb_manager.search_dual_source(
+                    query=query,
+                    query_embedding=query_embedding,
+                    top_k=top_k
+                )
+            else:
+                return "Error: Dual-source search not available in KB Manager"
+            
+            if not results:
+                return f"No documents found in knowledge base matching '{query}'"
+            
+            # Format results for the LLM with source information
+            response = f"[ENTERPRISE KB SEARCH] Found {len(results)} results from all sources:\n\n"
+            
+            for i, result in enumerate(results, 1):
+                source = result.get('source', 'Unknown')
+                similarity = result.get('similarity', 0)
+                sim_pct = similarity * 100 if isinstance(similarity, float) else similarity
+                
+                response += f"{i}. **{result.get('title', 'Unknown')}** [{source}]\n"
+                response += f"   Relevance: {sim_pct:.1f}%\n"
+                response += f"   Collection: {result.get('collection_id', 'Unknown')}\n"
+                response += f"   Preview: {result.get('text', '')[:200]}...\n\n"
+            
+            return response
+        
+        except Exception as e:
+            return f"Error searching enterprise KB: {str(e)}"
     
     def _get_kb_document(self, document_id: str) -> str:
         """
@@ -431,7 +565,9 @@ class FunctionExecutor:
         the function name the LLM provides.
         """
         return {
-            "search_knowledge_base": self._search_knowledge_base,
+            "search_knowledge_base": self._search_knowledge_base,  # Legacy
+            "search_local_kb": self._search_local_kb,  # New
+            "search_enterprise_kb": self._search_enterprise_kb,  # New
             "get_kb_document": self._get_kb_document,
             "get_kb_stats": self._get_kb_stats,
             "extract_code_snippet": self._extract_code_snippet,
@@ -446,3 +582,322 @@ class FunctionExecutor:
         """List all saved summaries"""
         return self.summaries
 
+
+class AgentPlanner:
+    """
+    Parses and validates multi-step plans from LLM responses.
+    
+    The LLM can return a PLAN: section indicating multiple steps needed.
+    This class extracts, parses, and validates those plans.
+    
+    Plan Format:
+    PLAN:
+    Step 1: search_enterprise_kb with query='6502 assembly'
+    Step 2: extract_code_snippet from results
+    Step 3: create_summary of findings
+    """
+    
+    def __init__(self):
+        """Initialize the planner"""
+        pass
+    
+    def parse_plan_from_llm(self, llm_response: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Extract and parse plan from LLM response.
+        
+        Args:
+            llm_response: Full LLM response that may contain a PLAN: section
+            
+        Returns:
+            List of step dictionaries or None if no plan found
+            
+        Example:
+            Input: "I'll help you. PLAN:\nStep 1: search_enterprise_kb with query='6502'"
+            Output: [
+                {
+                    'step': 1,
+                    'function': 'search_enterprise_kb',
+                    'args': {'query': '6502'},
+                    'depends_on': []
+                }
+            ]
+        """
+        if "PLAN:" not in llm_response:
+            return None
+        
+        try:
+            # Extract the PLAN section
+            plan_section = llm_response.split("PLAN:")[1]
+            lines = plan_section.strip().split("\n")
+            
+            steps = []
+            for line in lines:
+                line = line.strip()
+                if not line or not line.startswith("Step"):
+                    continue
+                
+                # Parse: "Step 1: search_enterprise_kb with query='6502'"
+                # or: "Step 2: extract_code_snippet from results"
+                try:
+                    step_num = int(line.split(":")[0].replace("Step", "").strip())
+                    rest = ":".join(line.split(":")[1:]).strip()
+                    
+                    # Extract function name and args
+                    if " with " in rest:
+                        func_part, args_part = rest.split(" with ", 1)
+                        function_name = func_part.strip()
+                        args = self._parse_arguments(args_part)
+                    else:
+                        function_name = rest.split(" from ")[0].strip() if " from " in rest else rest.strip()
+                        args = {}
+                    
+                    step = {
+                        'step': step_num,
+                        'function': function_name,
+                        'args': args,
+                        'depends_on': self._extract_dependencies(line, step_num)
+                    }
+                    steps.append(step)
+                
+                except (ValueError, IndexError) as e:
+                    print(f"[WARNING] Failed to parse step line: {line} - {e}")
+                    continue
+            
+            return steps if steps else None
+        
+        except Exception as e:
+            print(f"[ERROR] Failed to parse plan: {e}")
+            return None
+    
+    def _parse_arguments(self, args_str: str) -> Dict[str, Any]:
+        """
+        Parse argument string into dictionary.
+        
+        Examples:
+        "query='6502'" → {'query': '6502'}
+        "language='python', title='example'" → {'language': 'python', 'title': 'example'}
+        """
+        args = {}
+        # Simple parser for key='value' format
+        import re
+        matches = re.findall(r"(\w+)='([^']*)'", args_str)
+        for key, value in matches:
+            args[key] = value
+        return args
+    
+    def _extract_dependencies(self, line: str, current_step: int) -> List[int]:
+        """
+        Extract which steps the current step depends on.
+        
+        Examples:
+        "from results" or "from step 1 results" → [1]
+        "combining all results" → [1, 2, ...] (depends on all previous)
+        """
+        import re
+        depends = []
+        
+        # Look for "from step N"
+        matches = re.findall(r"from step (\d+)", line, re.IGNORECASE)
+        if matches:
+            depends = [int(m) for m in matches]
+        
+        # Look for "from results" or "combining" (implicit: all previous steps)
+        if ("from results" in line.lower() or "combining" in line.lower()) and not depends:
+            depends = list(range(1, current_step))
+        
+        return depends
+    
+    def validate_plan(self, plan: List[Dict[str, Any]], 
+                     available_functions: List[str]) -> tuple[bool, str]:
+        """
+        Validate that plan is executable.
+        
+        Checks:
+        1. All functions exist
+        2. Dependencies are valid (depend on earlier steps)
+        3. Step numbers are sequential
+        
+        Returns:
+            (is_valid, error_message)
+        """
+        if not plan:
+            return False, "Empty plan"
+        
+        # Check sequential step numbers
+        for i, step in enumerate(plan, 1):
+            if step['step'] != i:
+                return False, f"Steps not sequential: expected {i}, got {step['step']}"
+        
+        # Check all functions exist
+        for step in plan:
+            if step['function'] not in available_functions:
+                return False, f"Unknown function: {step['function']}"
+        
+        # Check dependencies
+        for step in plan:
+            for dep in step['depends_on']:
+                if dep >= step['step']:
+                    return False, f"Step {step['step']} depends on later step {dep}"
+                if dep < 1:
+                    return False, f"Step {step['step']} has invalid dependency {dep}"
+        
+        return True, "Valid plan"
+
+
+class PlanExecutor:
+    """
+    Executes multi-step plans with result chaining.
+    
+    Executes each step sequentially, passing results to dependent steps.
+    Handles failures gracefully with partial results.
+    """
+    
+    def __init__(self, executor: FunctionExecutor):
+        """
+        Initialize executor with a FunctionExecutor instance.
+        
+        Args:
+            executor: FunctionExecutor instance for function calls
+        """
+        self.executor = executor
+        self.results = {}  # {step_num: result}
+    
+    def execute_plan(self, plan: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Execute multi-step plan and return results.
+        
+        Args:
+            plan: List of step dictionaries from AgentPlanner
+            
+        Returns:
+            {
+                'success': bool,
+                'steps': [
+                    {'step': 1, 'function': 'search_enterprise_kb', 'result': '...', 'error': None},
+                    ...
+                ],
+                'final_response': 'Combined results'
+            }
+        """
+        self.results = {}
+        steps_executed = []
+        
+        print(f"\n[AGENT PLANNER] Executing {len(plan)} steps...")
+        
+        for step in plan:
+            step_num = step['step']
+            function_name = step['function']
+            args = step['args'].copy()
+            depends_on = step['depends_on']
+            
+            print(f"\n[STEP {step_num}] Executing: {function_name}")
+            
+            try:
+                # Inject previous results into arguments
+                enriched_args = self._inject_previous_results(args, depends_on)
+                
+                print(f"[STEP {step_num}] Arguments: {json.dumps(enriched_args, indent=2)}")
+                
+                # Execute the function
+                result = self.executor.execute_function(function_name, enriched_args)
+                
+                # Store result
+                self.results[step_num] = result
+                
+                steps_executed.append({
+                    'step': step_num,
+                    'function': function_name,
+                    'result': result,
+                    'error': None
+                })
+                
+                print(f"[STEP {step_num}] Success - Preview: {result[:100]}...")
+            
+            except Exception as e:
+                error_msg = f"Step {step_num} failed: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                
+                steps_executed.append({
+                    'step': step_num,
+                    'function': function_name,
+                    'result': None,
+                    'error': error_msg
+                })
+                
+                # Continue execution to get partial results
+                # (could also fail-fast here if preferred)
+        
+        # Check if all steps succeeded
+        success = all(step['error'] is None for step in steps_executed)
+        
+        # Generate final response
+        final_response = self._generate_final_response(steps_executed)
+        
+        return {
+            'success': success,
+            'steps': steps_executed,
+            'final_response': final_response,
+            'total_steps': len(plan),
+            'completed_steps': sum(1 for s in steps_executed if s['error'] is None)
+        }
+    
+    def _inject_previous_results(self, args: Dict[str, Any], 
+                                depends_on: List[int]) -> Dict[str, Any]:
+        """
+        Inject previous step results into current step arguments.
+        
+        For example, if Step 2 depends on Step 1 results:
+        - Take Step 1 result
+        - Add a '_previous_results' key to args
+        - Function implementation can use this
+        
+        Note: _previous_results is metadata, not passed to actual function
+        """
+        if not depends_on:
+            return args
+        
+        enriched_args = args.copy()
+        
+        # Collect all previous results
+        previous_results = {}
+        for dep_step in depends_on:
+            if dep_step in self.results:
+                previous_results[f'step_{dep_step}'] = self.results[dep_step]
+        
+        # Add to args (functions can check for _previous_results)
+        # This is metadata that functions can optionally use
+        if previous_results:
+            enriched_args['_context'] = {
+                'previous_results': previous_results,
+                'dependency_steps': depends_on
+            }
+        
+        return enriched_args
+    
+    def _generate_final_response(self, steps: List[Dict[str, Any]]) -> str:
+        """
+        Generate a natural language summary of the plan execution.
+        """
+        if not steps:
+            return "No steps executed."
+        
+        successful_steps = [s for s in steps if s['error'] is None]
+        failed_steps = [s for s in steps if s['error'] is not None]
+        
+        response = f"\n[MULTI-STEP EXECUTION SUMMARY]\n"
+        response += f"Total Steps: {len(steps)}\n"
+        response += f"Successful: {len(successful_steps)}\n"
+        response += f"Failed: {len(failed_steps)}\n\n"
+        
+        if successful_steps:
+            response += "Results:\n"
+            for step in successful_steps:
+                result_preview = step['result'][:150] if step['result'] else "No result"
+                response += f"\nStep {step['step']} ({step['function']}):\n{result_preview}...\n"
+        
+        if failed_steps:
+            response += "\nErrors:\n"
+            for step in failed_steps:
+                response += f"Step {step['step']}: {step['error']}\n"
+        
+        return response

@@ -30,7 +30,7 @@ from semantic_search import EmbeddingIndex, interactive_semantic_search, display
 from rag import RAGEngine, interactive_rag_settings
 from kb_manager import KnowledgeBase, interactive_kb_menu
 from image_generator import ImageGenerator, interactive_image_generator
-from function_calling import FunctionDefinitions, FunctionExecutor
+from function_calling import FunctionDefinitions, FunctionExecutor, AgentPlanner, PlanExecutor
 from ux_improvements import (
     ErrorMessages, ResponseTransparency, HelpfulTips, 
     DataTransparency, ConversationStarters
@@ -107,6 +107,17 @@ except Exception as e:
     function_executor = None
     function_calling_available = False
 
+# Initialize Multi-Step Planning (Phase B)
+try:
+    agent_planner = AgentPlanner()
+    plan_executor = PlanExecutor(function_executor) if function_executor else None
+    multi_step_planning_available = bool(function_executor and agent_planner)
+except Exception as e:
+    print(f"Warning: Multi-step planning not available: {e}")
+    agent_planner = None
+    plan_executor = None
+    multi_step_planning_available = False
+
 # Initialize Privacy Settings
 try:
     privacy_settings = PrivacySettings()
@@ -118,8 +129,103 @@ except Exception as e:
 conversation_history = []
 
 # System prompt/custom instructions
-system_prompt = "You are a helpful assistant."
-DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
+system_prompt = """You are an intelligent AI assistant with access to knowledge base search and analysis tools.
+
+KNOWLEDGE BASE SEARCH:
+When the user asks about knowledge base documents:
+- Use search_local_kb for quick searches (fast, local results, perfect for testing)
+- Use search_enterprise_kb for comprehensive searches (all sources, production-ready)
+
+Choose based on context:
+- "Quick answer" or "Summary" → search_local_kb
+- "Find all" or "Everything about" → search_enterprise_kb
+- "Production" or "Complete" → search_enterprise_kb
+
+MULTI-STEP WORKFLOWS:
+For complex queries that require multiple steps, use the PLAN format:
+
+PLAN:
+Step 1: function_name with arg1='value1', arg2='value2'
+Step 2: another_function using results from step 1
+Step 3: final_function combining all results
+
+Available multi-step functions:
+- search_local_kb(query, top_k=5) - Fast local KB search
+- search_enterprise_kb(query, top_k=5) - Comprehensive dual-source search
+- extract_code_snippet(language, title, code, description='') - Extract and store code
+- create_summary(topic, key_points, explanation='') - Create structured summary
+- get_kb_document(document_id) - Get full document content
+- get_kb_stats(collection='') - Get KB statistics
+
+WHEN TO USE MULTI-STEP PLANS:
+✓ Use multi-step plans when: Query requires analysis of search results + additional processing
+✓ Use multi-step plans when: Need to combine multiple function outputs
+✓ Skip multi-step plans when: Simple single-function query is sufficient
+
+EXAMPLES:
+
+Single-step (no plan needed):
+User: "Tell me about the 6502"
+→ Just call search_enterprise_kb
+
+Multi-step (use PLAN):
+User: "Find all 6502 information and summarize it"
+→ Create a plan with search + summary steps
+
+EXECUTION:
+- For single-step queries: Execute the function directly
+- For multi-step queries: Return the PLAN: section, and I will execute all steps
+
+Remember: Complex is not always better. Use multi-step only when necessary."""
+
+DEFAULT_SYSTEM_PROMPT = """You are an intelligent AI assistant with access to knowledge base search and analysis tools.
+
+KNOWLEDGE BASE SEARCH:
+When the user asks about knowledge base documents:
+- Use search_local_kb for quick searches (fast, local results, perfect for testing)
+- Use search_enterprise_kb for comprehensive searches (all sources, production-ready)
+
+Choose based on context:
+- "Quick answer" or "Summary" → search_local_kb
+- "Find all" or "Everything about" → search_enterprise_kb
+- "Production" or "Complete" → search_enterprise_kb
+
+MULTI-STEP WORKFLOWS:
+For complex queries that require multiple steps, use the PLAN format:
+
+PLAN:
+Step 1: function_name with arg1='value1', arg2='value2'
+Step 2: another_function using results from step 1
+Step 3: final_function combining all results
+
+Available multi-step functions:
+- search_local_kb(query, top_k=5) - Fast local KB search
+- search_enterprise_kb(query, top_k=5) - Comprehensive dual-source search
+- extract_code_snippet(language, title, code, description='') - Extract and store code
+- create_summary(topic, key_points, explanation='') - Create structured summary
+- get_kb_document(document_id) - Get full document content
+- get_kb_stats(collection='') - Get KB statistics
+
+WHEN TO USE MULTI-STEP PLANS:
+✓ Use multi-step plans when: Query requires analysis of search results + additional processing
+✓ Use multi-step plans when: Need to combine multiple function outputs
+✓ Skip multi-step plans when: Simple single-function query is sufficient
+
+EXAMPLES:
+
+Single-step (no plan needed):
+User: "Tell me about the 6502"
+→ Just call search_enterprise_kb
+
+Multi-step (use PLAN):
+User: "Find all 6502 information and summarize it"
+→ Create a plan with search + summary steps
+
+EXECUTION:
+- For single-step queries: Execute the function directly
+- For multi-step queries: Return the PLAN: section, and I will execute all steps
+
+Remember: Complex is not always better. Use multi-step only when necessary."""
 
 # Current model (will be set during initialization)
 current_model = DEFAULT_MODEL
@@ -171,7 +277,64 @@ def handle_function_calls(messages, model_name):
         
         response_message = response.choices[0].message
         
-        # Step 2: Check if LLM wants to call a function
+        # Step 2: Check if LLM response contains a multi-step plan
+        response_text = response_message.content if hasattr(response_message, 'content') else ""
+        if multi_step_planning_available and response_text and "PLAN:" in response_text:
+            print("\n[AGENT PLANNER] Multi-step plan detected!")
+            
+            # Parse the plan
+            plan = agent_planner.parse_plan_from_llm(response_text)
+            if plan:
+                # Validate the plan
+                available_functions = list(function_executor.get_available_functions().keys())
+                is_valid, validation_msg = agent_planner.validate_plan(plan, available_functions)
+                
+                if is_valid:
+                    print("[AGENT PLANNER] Plan validation successful")
+                    
+                    # Execute the plan
+                    plan_result = plan_executor.execute_plan(plan)
+                    
+                    # Add plan execution result to messages
+                    messages.append({
+                        "role": "assistant",
+                        "content": response_text
+                    })
+                    
+                    messages.append({
+                        "role": "function",
+                        "name": "multi_step_plan",
+                        "content": plan_result['final_response']
+                    })
+                    
+                    # Get final natural language response
+                    print("[AGENT PLANNER] Getting final response from LLM...")
+                    final_response = client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        functions=FunctionDefinitions.get_all_functions(),
+                        function_call="auto",
+                        temperature=params['temperature'],
+                        max_tokens=params['max_tokens'],
+                        top_p=params['top_p'],
+                        stream=True
+                    )
+                    
+                    # Stream response
+                    full_response = ""
+                    for chunk in final_response:
+                        if chunk.choices[0].delta.content:
+                            print(chunk.choices[0].delta.content, end="", flush=True)
+                            full_response += chunk.choices[0].delta.content
+                    
+                    return full_response, True
+                else:
+                    print(f"[AGENT PLANNER] Plan validation failed: {validation_msg}")
+                    # Fall through to single-step execution
+            else:
+                print("[AGENT PLANNER] Failed to parse plan, falling back to single-step")
+        
+        # Step 2b: Check if LLM wants to call a single function
         if not hasattr(response_message, 'function_call') or not response_message.function_call:
             return None, False
         
